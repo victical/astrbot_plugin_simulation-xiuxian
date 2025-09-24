@@ -2,7 +2,72 @@
 import random
 from ..database.repositories import player_repository
 from ..config import sects_data
+from ..config.cultivation_levels import LEVEL_ORDER
 from . import progression_system
+
+def _check_and_process_promotion(player: "Player") -> str | None:
+    """检查并处理玩家的宗门职位晋升，成功则返回祝贺消息"""
+    if not player.sect:
+        return None
+
+    sect_info = sects_data.SECTS_DATA.get(player.sect, {})
+    ranks = sect_info.get("ranks", [])
+    if not ranks:
+        return None
+
+    # 查找当前职位和下一个职位
+    current_rank_index = -1
+    for i, rank_data in enumerate(ranks):
+        if rank_data["name"] == player.sect_rank:
+            current_rank_index = i
+            break
+    
+    # 如果已是最高职位或未找到当前职位
+    if current_rank_index == -1 or current_rank_index + 1 >= len(ranks):
+        return None
+
+    next_rank_data = ranks[current_rank_index + 1]
+    req = next_rank_data.get("promotion_req")
+    if not req:
+        return None
+
+    # 检查晋升条件
+    req_contribution = req.get("contribution", float('inf'))
+    req_level = req.get("level")
+    
+    # 等级比较
+    player_level_index = LEVEL_ORDER.index(player.level)
+    req_level_index = LEVEL_ORDER.index(req_level)
+
+    if player.contribution >= req_contribution and player_level_index >= req_level_index:
+        # --- 满足条件，执行晋升 ---
+        old_rank = player.sect_rank
+        new_rank = next_rank_data["name"]
+        player.sect_rank = new_rank
+        
+        promotion_message = [f"恭喜！你在【{player.sect}】的职位从【{old_rank}】提升为【{new_rank}】！"]
+        
+        # 发放晋升奖励
+        reward = next_rank_data.get("promotion_reward", {})
+        if "spirit_stones" in reward:
+            player.spirit_stones += reward["spirit_stones"]
+            promotion_message.append(f"获得晋升奖励：灵石 x{reward['spirit_stones']}！")
+        
+        if "items" in reward:
+            for item_info in reward["items"]:
+                item_name = item_info["name"]
+                quantity = item_info.get("quantity", 1)
+                if item_name in player.inventory:
+                    player.inventory[item_name]["quantity"] += quantity
+                else:
+                    # 假设奖励物品都是丹药类型，后续可扩展
+                    player.inventory[item_name] = {"quantity": quantity, "type": "丹药"}
+                promotion_message.append(f"获得晋升奖励：{item_name} x{quantity}！")
+
+        return "\n".join(promotion_message)
+
+    return None
+
 
 def list_all_sects() -> str:
     """
@@ -45,8 +110,9 @@ def join_sect(user_id: str, sect_name_to_join: str) -> str:
     # 3. 执行加入宗门的逻辑
     sect_info = sects_data.SECTS_DATA[sect_name_to_join]
     
-    # 分配初始职位（通常是列表中的第一个）
-    initial_rank = sect_info.get('ranks', ['弟子'])[0]
+    # 分配初始职位
+    initial_rank_data = sect_info.get('ranks', [{}])[0]
+    initial_rank = initial_rank_data.get('name', '外门弟子')
     
     player.sect = sect_name_to_join
     player.sect_rank = initial_rank
@@ -111,6 +177,9 @@ def complete_sect_mission(user_id: str) -> str:
     
     # 检查是否升级（重用 progression_system 的逻辑）
     levelup_message = progression_system._check_and_process_levelup(player)
+
+    # 新增：检查是否晋升
+    promotion_message = _check_and_process_promotion(player)
     
     # 保存所有更新
     player_repository.update_player(player)
@@ -124,9 +193,52 @@ def complete_sect_mission(user_id: str) -> str:
     )
     
     if levelup_message:
-        message += "\n" + levelup_message
+        message += "\n\n" + levelup_message
+    
+    if promotion_message:
+        message += "\n\n" + promotion_message
         
     return message
+
+
+def get_sect_status(user_id: str) -> str:
+    """获取玩家的宗门状态信息"""
+    player = player_repository.get_player_by_id(user_id)
+
+    if not player:
+        return "道友，你尚未踏入仙途。"
+    
+    if not player.sect:
+        return "你尚未加入任何宗门。使用 `!宗门列表` 查看可加入的宗门。"
+
+    sect_info = sects_data.SECTS_DATA.get(player.sect, {})
+    ranks = sect_info.get("ranks", [])
+    
+    message_parts = [
+        f"═══【{player.sect} - 个人信息】═══",
+        f"道号: {player.user_name}",
+        f"职位: {player.sect_rank}",
+        f"贡献: {player.contribution}",
+        "════════════════════"
+    ]
+
+    # 显示下一级晋升条件
+    current_rank_index = -1
+    for i, rank_data in enumerate(ranks):
+        if rank_data["name"] == player.sect_rank:
+            current_rank_index = i
+            break
+
+    if 0 <= current_rank_index < len(ranks) - 1:
+        next_rank_data = ranks[current_rank_index + 1]
+        req = next_rank_data.get("promotion_req")
+        if req:
+            req_contribution = req.get("contribution", "无")
+            req_level = req.get("level", "无")
+            message_parts.append(f"下一职位: 【{next_rank_data['name']}】")
+            message_parts.append(f"晋升要求: {req_contribution}贡献, {req_level}境界")
+
+    return "\n".join(message_parts)
 
 
 def list_exchangeable_items(user_id: str) -> str:
@@ -137,19 +249,33 @@ def list_exchangeable_items(user_id: str) -> str:
         return "散修一枚，何谈宗门贡献。快去 `!加入宗门` 吧！"
 
     sect_shop = sects_data.SECTS_DATA.get(player.sect, {}).get('exchange_shop', {})
-    player_rank = player.sect_rank
     
-    # 获取当前职位可兑换的物品
-    available_items = sect_shop.get(player_rank, [])
-    if not available_items:
-        return f"你在【{player.sect}】的职位({player_rank})太低，宝库尚未对你开放。"
-
     message_parts = [
-        f"═══【{player.sect} - {player_rank}宝库】═══",
-        f"你当前的贡献为: {player.contribution}"
+        f"═══【{player.sect} - 宝库】═══",
+        f"你当前的贡献为: {player.contribution}",
+        f"你的职位为: {player.sect_rank}",
+        "----------"
     ]
-    for item in available_items:
-        message_parts.append(f"【{item['name']}】 - 需要贡献: {item['cost']}")
+
+    # 获取所有低于或等于当前职位的可兑换物品
+    player_rank_index = -1
+    all_ranks = [r['name'] for r in sects_data.SECTS_DATA.get(player.sect, {}).get('ranks', [])]
+    if player.sect_rank in all_ranks:
+        player_rank_index = all_ranks.index(player.sect_rank)
+
+    accessible_items = []
+    if player_rank_index != -1:
+        for i in range(player_rank_index + 1):
+            rank_name = all_ranks[i]
+            items = sect_shop.get(rank_name, [])
+            if items:
+                message_parts.append(f"[{rank_name} 可兑换]")
+                for item in items:
+                    accessible_items.append(item)
+                    message_parts.append(f"  【{item['name']}】 - 需要贡献: {item['cost']}")
+
+    if not accessible_items:
+        return f"你在【{player.sect}】的职位({player.sect_rank})太低，宝库尚未对你开放。"
     
     message_parts.append("════════════════════")
     message_parts.append("使用 `!兑换 [物品名称]` 来进行兑换。")
@@ -164,18 +290,32 @@ def exchange_item(user_id: str, item_name_to_buy: str) -> str:
         return "散修一枚，何谈宗门贡献。"
 
     sect_shop = sects_data.SECTS_DATA.get(player.sect, {}).get('exchange_shop', {})
-    player_rank = player.sect_rank
-    available_items = sect_shop.get(player_rank, [])
     
-    # 查找玩家想兑换的物品
+    # 查找玩家想兑换的物品，并检查其职位是否足够
+    player_rank_index = -1
+    all_ranks = [r['name'] for r in sects_data.SECTS_DATA.get(player.sect, {}).get('ranks', [])]
+    if player.sect_rank in all_ranks:
+        player_rank_index = all_ranks.index(player.sect_rank)
+
     target_item = None
-    for item in available_items:
-        if item['name'] == item_name_to_buy:
-            target_item = item
+    can_exchange = False
+    
+    # 遍历所有职位等级的商店
+    for i in range(len(all_ranks)):
+        rank_name = all_ranks[i]
+        items_in_rank = sect_shop.get(rank_name, [])
+        for item in items_in_rank:
+            if item['name'] == item_name_to_buy:
+                target_item = item
+                # 检查玩家职位是否达到兑换要求
+                if player_rank_index >= i:
+                    can_exchange = True
+                break
+        if target_item:
             break
-            
-    if not target_item:
-        return f"你在【{player.sect}】的职位({player_rank})无法兑换【{item_name_to_buy}】，或者该物品不存在。"
+
+    if not target_item or not can_exchange:
+        return f"你的职位({player.sect_rank})无法兑换【{item_name_to_buy}】，或者该物品不存在。"
 
     # 检查贡献度是否足够
     if player.contribution < target_item['cost']:

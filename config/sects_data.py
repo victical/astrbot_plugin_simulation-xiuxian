@@ -7,7 +7,27 @@ SECTS_DATA = {
         "description": "东域大派，以木系功法和疗伤丹药闻名于世，门中弟子多心怀仁善。",
         "region": "东域",
         "specialty": ["木系", "治疗", "辅助"],
-        "ranks": ["外门弟子", "内门弟子", "真传弟子", "长老", "护法"],
+        "ranks": [
+            {
+                "name": "外门弟子",
+                "promotion_req": None  # 初始职位
+            },
+            {
+                "name": "内门弟子",
+                "promotion_req": {"contribution": 200, "level": "筑基"},
+                "promotion_reward": {"spirit_stones": 100, "items": [{"name": "筑基丹", "quantity": 1}]}
+            },
+            {
+                "name": "真传弟子",
+                "promotion_req": {"contribution": 1000, "level": "金丹"},
+                "promotion_reward": {"spirit_stones": 500, "items": [{"name": "生机丹", "quantity": 3}]}
+            },
+            {
+                "name": "长老",
+                "promotion_req": {"contribution": 5000, "level": "元婴"},
+                "promotion_reward": {"spirit_stones": 2000}
+            }
+        ],
         "missions": [
             {
                 "id": "qmxz_001",
@@ -36,7 +56,11 @@ SECTS_DATA = {
             ],
             "内门弟子": [
                 {"name": "筑基丹", "type": "丹药", "description": "辅助筑基期修士稳固道基。", "cost": 200},
-                # 未来可以添加更多内门弟子可兑换的物品
+                {"name": "生机丹", "type": "丹药", "description": "蕴含强大生机，可用于快速恢复中阶修士的生命和灵力。", "cost": 150}
+            ],
+            "真传弟子": [
+                {"name": "蕴灵丹", "type": "丹药", "description": "大幅补充元婴期修士的灵力消耗。", "cost": 500},
+                {"name": "碧玉葫芦", "type": "法宝", "description": "内含生命精华，可瞬间恢复大量生命。", "cost": 1200}
             ]
         },
         "skills": {
