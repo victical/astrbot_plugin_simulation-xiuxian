@@ -1,0 +1,6 @@
+name: astrbot_plugin_simulation-xiuxian # 这是你的插件的唯一识别名。
+desc: 一个简单的文字模拟修仙插件 # 插件简短描述
+help: # 插件的帮助信息
+version: v0.0.1
+author: Victical # 作者
+repo: https://github.com/victical/astrbot_plugin_simulation-xiuxian # 插件的仓库地址
