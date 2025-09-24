@@ -1,5 +1,5 @@
 # astrbot_xiuxian_plugin/systems/game_start_system.py
-
+from astrbot.core import logger
 from ..models.player import Player
 from ..database.repositories import player_repository
 from ..config import settings
@@ -16,17 +16,21 @@ def start_game(user_id: str, user_name: str) -> str:
     :param user_name: 用户的昵称
     :return: 一条将要回复给用户的消息字符串
     """
+    logger.info(f"进入 start_game 系统, user_id={user_id}")
     # 1. 检查玩家是否已经存在
+    logger.info("检查玩家是否存在...")
     if player_repository.player_exists(user_id):
+        logger.info("玩家已存在。")
         player = player_repository.get_player_by_id(user_id)
         if player:
-            return f"道友 {player.user_name}，你已在仙途中，当前境界为【{player.level}】。无需重新开始。使用 `!我的状态` 查看详情。"
+            return f"道友 {player.user_name}，你已在仙途中，当前境界为【{player.level}】。无需重新开始。使用 `我的状态` 查看详情。"
         else:
+            logger.error("严重错误: player_exists 返回 True 但 get_player_by_id 返回 None。")
             # 这是一个理论上的边缘情况，以防万一
             return "系统出现异常，无法获取您的角色信息，请联系管理员。"
 
     # 2. 如果玩家不存在，创建新角色
-    print(f"新玩家加入: user_id={user_id}, user_name={user_name}")
+    logger.info(f"玩家不存在，准备创建新角色: user_id={user_id}, user_name={user_name}")
 
     # 从配置文件获取初始属性
     initial_stats = settings.INITIAL_PLAYER_STATS
@@ -50,14 +54,16 @@ def start_game(user_id: str, user_name: str) -> str:
     )
 
     # 3. 将新玩家存入数据库
+    logger.info("正在将新玩家存入数据库...")
     player_repository.create_player(new_player)
+    logger.info("新玩家已成功存入数据库。")
 
     # 4. 构造欢迎消息
     welcome_message = (
         f"欢迎道友 {user_name}！\n"
         f"你已成功踏入修仙世界，成为一名【凡人】。\n"
         f"你的旅程从此开始，愿你早日证道长生！\n"
-        f"输入 `!我的状态` 来查看你的当前信息。"
+        f"输入 `我的状态` 来查看你的当前信息。"
     )
     
     return welcome_message

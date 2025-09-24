@@ -83,7 +83,7 @@ def list_all_sects() -> str:
         message_parts.append(f"【{sect_name}】: {description}")
     
     message_parts.append("══════════════")
-    message_parts.append("使用 `!加入宗门 [名称]` 来加入你心仪的宗门。")
+    message_parts.append("使用 `加入宗门 [名称]` 来加入你心仪的宗门。")
     
     return "\n".join(message_parts)
 
@@ -105,7 +105,7 @@ def join_sect(user_id: str, sect_name_to_join: str) -> str:
 
     # 2. 检查想加入的宗门是否存在
     if sect_name_to_join not in sects_data.SECTS_DATA:
-        return f"寻遍天下，也未曾听闻名为【{sect_name_to_join}】的宗门。使用 `!宗门列表` 查看所有宗门。"
+        return f"寻遍天下，也未曾听闻名为【{sect_name_to_join}】的宗门。使用 `宗门列表` 查看所有宗门。"
 
     # 3. 执行加入宗门的逻辑
     sect_info = sects_data.SECTS_DATA[sect_name_to_join]
@@ -131,7 +131,7 @@ def get_sect_mission(user_id: str) -> str:
         return "道友，你尚未踏入仙途。"
     
     if not player.sect:
-        return "你尚未加入任何宗门，无法领取任务。使用 `!宗门列表` 查看可加入的宗门。"
+        return "你尚未加入任何宗门，无法领取任务。使用 `宗门列表` 查看可加入的宗门。"
 
     if player.current_mission:
         mission_name = player.current_mission.get('name', '未知任务')
@@ -158,7 +158,7 @@ def complete_sect_mission(user_id: str) -> str:
         return "道友，你尚未踏入仙途。"
 
     if not player.current_mission:
-        return "你身上没有任务，快去 `!宗门任务` 领取一个吧。"
+        return "你身上没有任务，快去 `宗门任务` 领取一个吧。"
 
     mission_data = player.current_mission
     rewards = mission_data.get('rewards', {})
@@ -209,7 +209,7 @@ def get_sect_status(user_id: str) -> str:
         return "道友，你尚未踏入仙途。"
     
     if not player.sect:
-        return "你尚未加入任何宗门。使用 `!宗门列表` 查看可加入的宗门。"
+        return "你尚未加入任何宗门。使用 `宗门列表` 查看可加入的宗门。"
 
     sect_info = sects_data.SECTS_DATA.get(player.sect, {})
     ranks = sect_info.get("ranks", [])
@@ -278,7 +278,7 @@ def list_exchangeable_items(user_id: str) -> str:
         return f"你在【{player.sect}】的职位({player.sect_rank})太低，宝库尚未对你开放。"
     
     message_parts.append("════════════════════")
-    message_parts.append("使用 `!兑换 [物品名称]` 来进行兑换。")
+    message_parts.append("使用 `兑换 [物品名称]` 来进行兑换。")
     return "\n".join(message_parts)
 
 
@@ -339,4 +339,4 @@ def exchange_item(user_id: str, item_name_to_buy: str) -> str:
     # 3. 保存更新到数据库
     player_repository.update_player(player)
 
-    return f"兑换成功！你花费了 {target_item['cost']} 贡献，获得了【{target_item['name']}】x1。可使用 `!我的背包` 查看。"
+    return f"兑换成功！你花费了 {target_item['cost']} 贡献，获得了【{target_item['name']}】x1。可使用 `我的背包` 查看。"

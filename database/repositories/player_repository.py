@@ -1,5 +1,5 @@
 # astrbot_xiuxian_plugin/database/repositories/player_repository.py
-
+from astrbot.core import logger
 from ...models.player import Player
 from ...database import db_manager
 
@@ -9,12 +9,15 @@ def get_player_by_id(user_id: str) -> Player | None:
     :param user_id: 玩家的唯一ID
     :return: Player 对象或 None
     """
+    logger.info(f"仓库层: 正在通过 ID 查询玩家: {user_id}")
     sql = "SELECT * FROM players WHERE user_id = ?"
     row = db_manager.fetch_query(sql, (user_id,), one=True)
     
     if row:
+        logger.info("仓库层: 成功找到玩家。")
         # 将数据库行数据解包以匹配 Player 类的构造函数
         return Player(*row)
+    logger.warning("仓库层: 未找到玩家。")
     return None
 
 def create_player(player: Player):
@@ -22,6 +25,7 @@ def create_player(player: Player):
     在数据库中创建一个新玩家
     :param player: Player 对象
     """
+    logger.info(f"仓库层: 正在创建新玩家: {player.user_id}")
     # 修正：VALUES 子句中添加了第15个 '?' 来匹配 current_mission
     sql = """
     INSERT INTO players (user_id, user_name, level, experience, spirit_stones, 
