@@ -1,6 +1,8 @@
 # astrbot_xiuxian_plugin/systems/progression_system.py
 
 import random
+import time
+from datetime import datetime, timezone
 from ..database.repositories import player_repository
 from ..config import cultivation_levels
 from ..models.player import Player
@@ -15,83 +17,94 @@ def _check_and_process_levelup(player: Player) -> str:
     """
     levelup_messages = []
     
-    # 使用 while 循环来处理可能发生的连续升级
     while True:
         current_level = player.level
         
-        # 如果已经是最高级，则无法再升级
         if current_level == cultivation_levels.LEVEL_ORDER[-1]:
             break
 
-        required_exp = cultivation_levels.CULTIVATION_LEVELS.get(current_level)
+        level_info = cultivation_levels.CULTIVATION_LEVELS.get(current_level)
+        required_exp = level_info["required_exp"]
         
-        # 检查经验是否足够
         if player.experience >= required_exp:
-            # 获取当前等级在等级列表中的索引
             current_level_index = cultivation_levels.LEVEL_ORDER.index(current_level)
-            # 新等级就是列表中的下一个
             new_level = cultivation_levels.LEVEL_ORDER[current_level_index + 1]
             
             player.level = new_level
+            new_level_info = cultivation_levels.CULTIVATION_LEVELS.get(new_level)
+            player.max_spirit_power = new_level_info["max_spirit_power"]
             
-            # 升级奖励：增加各项属性
-            # 这里的数值可以根据游戏平衡性进行调整
             hp_gain = random.randint(50, 100)
-            mp_gain = random.randint(20, 50)
+            spirit_power_gain = random.randint(20, 50)
             attack_gain = random.randint(5, 10)
             defense_gain = random.randint(3, 8)
             
             player.hp += hp_gain
-            player.mp += mp_gain
+            player.spirit_power = min(player.spirit_power + spirit_power_gain, player.max_spirit_power)
             player.attack += attack_gain
             player.defense += defense_gain
             
             msg = (f"🎉 恭喜！你成功突破，当前境界提升至【{new_level}】！\n"
-                   f"   气血+ {hp_gain}, 灵力+ {mp_gain}, 攻击+ {attack_gain}, 防御+ {defense_gain}")
+                   f"   气血+ {hp_gain}, 灵力上限提升至 {player.max_spirit_power}, 攻击+ {attack_gain}, 防御+ {defense_gain}")
             levelup_messages.append(msg)
         else:
-            # 经验不足，跳出循环
             break
             
     return "\n".join(levelup_messages)
 
-def meditate(user_id: str) -> str:
+def start_meditation(user_id: str) -> str:
     """
-    处理玩家打坐的逻辑。
-    :param user_id: 玩家的唯一ID
-    :return: 打坐结果的消息
+    开始打坐。
     """
     player = player_repository.get_player_by_id(user_id)
-
     if not player:
-        return "道友，你尚未踏入仙途。请输入 `!开始修仙` 开启你的旅程。"
-        
-    # 根据玩家等级设定收益范围，等级越高，收益越大
+        return "道友，你尚未踏入仙途。请输入 `我要修仙` 开启你的旅程。"
+    
+    if player.meditation_start_time:
+        return "你正在打坐中，请先 `结束打坐`。"
+
+    player.meditation_start_time = int(time.time())
+    player_repository.update_player(player)
+    
+    return "你开始了打坐，灵力正在慢慢恢复..."
+
+def stop_meditation(user_id: str) -> str:
+    """
+    结束打坐并结算收益。
+    """
+    player = player_repository.get_player_by_id(user_id)
+    if not player:
+        return "道友，你尚未踏入仙途。请输入 `我要修仙` 开启你的旅程。"
+
+    if not player.meditation_start_time:
+        return "你尚未开始打坐。"
+
+    end_time = int(time.time())
+    start_time = player.meditation_start_time
+    duration_minutes = (end_time - start_time) / 60
+
+    if duration_minutes < 1:
+        return "打坐时间不足一分钟，无法获得收益。"
+
     level_index = cultivation_levels.LEVEL_ORDER.index(player.level)
     
-    # 基础收益 + 等级加成
-    min_exp_gain = 10 + level_index * 5
-    max_exp_gain = 20 + level_index * 10
-    min_stone_gain = 1 + level_index
-    max_stone_gain = 5 + level_index * 2
+    # 每分钟收益
+    exp_per_minute = 5 + level_index * 2
+    spirit_power_per_minute = 10 + level_index * 5
 
-    # 获得随机奖励
-    exp_gained = random.randint(min_exp_gain, max_exp_gain)
-    stones_gained = random.randint(min_stone_gain, max_stone_gain)
+    exp_gained = int(duration_minutes * exp_per_minute)
+    spirit_power_gained = int(duration_minutes * spirit_power_per_minute)
 
     player.experience += exp_gained
-    player.spirit_stones += stones_gained
+    player.spirit_power = min(player.spirit_power + spirit_power_gained, player.max_spirit_power)
+    player.meditation_start_time = None
 
-    # 检查是否升级
     levelup_message = _check_and_process_levelup(player)
-
-    # 将更新后的玩家数据保存回数据库
     player_repository.update_player(player)
 
-    # 构造最终消息
     result_message = (
-        f"打坐结束。\n"
-        f"你获得了 {exp_gained} 点修为，{stones_gained} 颗灵石。"
+        f"打坐结束，共持续 {int(duration_minutes)} 分钟。\n"
+        f"你获得了 {exp_gained} 点修为，恢复了 {spirit_power_gained} 点灵力。"
     )
 
     if levelup_message:

@@ -19,11 +19,11 @@ def get_player_status(user_id: str) -> str:
 
     # 2. 检查玩家是否存在
     if not player:
-        return "道友，你尚未踏入仙途。请输入 `!开始修仙` 开启你的旅程。"
+        return "道友，你尚未踏入仙途。请输入 `开始修仙` 开启你的旅程。"
 
     # 3. 如果存在，格式化输出信息
-    # 获取晋升到下一级所需经验
-    next_level_exp = cultivation_levels.CULTIVATION_LEVELS.get(player.level, '已达巅峰')
+    level_info = cultivation_levels.CULTIVATION_LEVELS.get(player.level)
+    next_level_exp = level_info["required_exp"] if level_info else '已达巅峰'
 
     status_message = (
         f"═══【道友 {player.user_name} 的状态】═══\n"
@@ -32,7 +32,7 @@ def get_player_status(user_id: str) -> str:
         f"灵石: {player.spirit_stones} 颗\n"
         f"═══ 属性 ═══\n"
         f"气血: {player.hp}\n"
-        f"灵力: {player.mp}\n"
+        f"灵力: {player.spirit_power} / {player.max_spirit_power}\n"
         f"攻击: {player.attack}\n"
         f"防御: {player.defense}\n"
         f"═══ 身份 ═══\n"

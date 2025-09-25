@@ -4,22 +4,25 @@ import json
 
 class Player:
     def __init__(self, user_id, user_name, level, experience, spirit_stones, 
-                 hp, mp, attack, defense, sect, sect_rank, contribution, 
-                 inventory=None, learned_skills=None,current_mission=None, created_at=None, updated_at=None):
+                 hp, spirit_power, max_spirit_power, attack, defense, meditation_start_time,
+                 sect, sect_rank, contribution, 
+                 inventory=None, learned_skills=None, current_mission=None, 
+                 created_at=None, updated_at=None):
         self.user_id = user_id
         self.user_name = user_name
         self.level = level
         self.experience = experience
         self.spirit_stones = spirit_stones
         self.hp = hp
-        self.mp = mp
+        self.spirit_power = spirit_power
+        self.max_spirit_power = max_spirit_power
         self.attack = attack
         self.defense = defense
+        self.meditation_start_time = meditation_start_time
         self.sect = sect
         self.sect_rank = sect_rank
         self.contribution = contribution
         
-        # 背包和技能使用 JSON 字符串存储，在这里解析为 Python 对象
         self.inventory = json.loads(inventory) if inventory else {}
         self.learned_skills = json.loads(learned_skills) if learned_skills else []
         self.current_mission = json.loads(current_mission) if current_mission and current_mission != 'null' else None
@@ -36,9 +39,11 @@ class Player:
             "experience": self.experience,
             "spirit_stones": self.spirit_stones,
             "hp": self.hp,
-            "mp": self.mp,
+            "spirit_power": self.spirit_power,
+            "max_spirit_power": self.max_spirit_power,
             "attack": self.attack,
             "defense": self.defense,
+            "meditation_start_time": self.meditation_start_time,
             "sect": self.sect,
             "sect_rank": self.sect_rank,
             "contribution": self.contribution,

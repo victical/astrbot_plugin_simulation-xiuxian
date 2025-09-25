@@ -1,13 +1,7 @@
---- START OF FILE README.md ---
-
 # AstrBot 模拟修仙插件
 
 ## 插件简介
 本插件是基于 AstrBot 平台开发的模拟修仙插件，旨在为用户提供一个沉浸式的修仙体验。插件将利用 AstrBot 配置的大模型服务提供商，生成丰富的剧情内容，并结合固定的奖励机制，让玩家在修仙世界中不断成长，最终飞升成仙。
-
-## 开发参考
-- **AstrBot 插件开发规范**: [https://docs.astrbot.app/dev/star/plugin.html](https://docs.astrbot.app/dev/star/plugin.html)
-- **参考修仙插件**: [https://github.com/oldPeter616/astrbot_plugin_xiuxian](https://github.com/oldPeter616/astrbot_plugin_xiuxian)
 
 ## 核心功能与设定
 

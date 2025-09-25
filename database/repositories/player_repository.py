@@ -10,7 +10,14 @@ def get_player_by_id(user_id: str) -> Player | None:
     :return: Player 对象或 None
     """
     logger.info(f"仓库层: 正在通过 ID 查询玩家: {user_id}")
-    sql = "SELECT * FROM players WHERE user_id = ?"
+    sql = """
+    SELECT user_id, user_name, level, experience, spirit_stones, 
+           hp, spirit_power, max_spirit_power, attack, defense, meditation_start_time,
+           sect, sect_rank, contribution, inventory, learned_skills, current_mission, 
+           created_at, updated_at
+    FROM players 
+    WHERE user_id = ?
+    """
     row = db_manager.fetch_query(sql, (user_id,), one=True)
     
     if row:
@@ -26,21 +33,20 @@ def create_player(player: Player):
     :param player: Player 对象
     """
     logger.info(f"仓库层: 正在创建新玩家: {player.user_id}")
-    # 修正：VALUES 子句中添加了第15个 '?' 来匹配 current_mission
     sql = """
     INSERT INTO players (user_id, user_name, level, experience, spirit_stones, 
-                         hp, mp, attack, defense, sect, sect_rank, contribution, 
-                         inventory, learned_skills, current_mission)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         hp, spirit_power, max_spirit_power, attack, defense, meditation_start_time,
+                         sect, sect_rank, contribution, inventory, learned_skills, current_mission)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
     player_dict = player.to_dict()
     params = (
         player_dict['user_id'], player_dict['user_name'], player_dict['level'],
         player_dict['experience'], player_dict['spirit_stones'], player_dict['hp'],
-        player_dict['mp'], player_dict['attack'], player_dict['defense'],
-        player_dict['sect'], player_dict['sect_rank'], player_dict['contribution'],
-        player_dict['inventory'], player_dict['learned_skills'],
-        player_dict['current_mission']
+        player_dict['spirit_power'], player_dict['max_spirit_power'], player_dict['attack'],
+        player_dict['defense'], player_dict['meditation_start_time'], player_dict['sect'],
+        player_dict['sect_rank'], player_dict['contribution'], player_dict['inventory'],
+        player_dict['learned_skills'], player_dict['current_mission']
     )
     db_manager.execute_query(sql, params)
 
@@ -49,24 +55,23 @@ def update_player(player: Player):
     更新数据库中的玩家数据
     :param player: Player 对象
     """
-    # 修正：SET 子句中添加了 current_mission = ?
     sql = """
     UPDATE players SET
         user_name = ?, level = ?, experience = ?, spirit_stones = ?,
-        hp = ?, mp = ?, attack = ?, defense = ?, sect = ?, sect_rank = ?,
-        contribution = ?, inventory = ?, learned_skills = ?, current_mission = ?,
+        hp = ?, spirit_power = ?, max_spirit_power = ?, attack = ?, defense = ?,
+        meditation_start_time = ?, sect = ?, sect_rank = ?, contribution = ?,
+        inventory = ?, learned_skills = ?, current_mission = ?,
         updated_at = CURRENT_TIMESTAMP
     WHERE user_id = ?
     """
     player_dict = player.to_dict()
     params = (
         player_dict['user_name'], player_dict['level'], player_dict['experience'],
-        player_dict['spirit_stones'], player_dict['hp'], player_dict['mp'],
-        player_dict['attack'], player_dict['defense'], player_dict['sect'],
-        player_dict['sect_rank'], player_dict['contribution'],
-        player_dict['inventory'], player_dict['learned_skills'],
-        player_dict['current_mission'],
-        player_dict['user_id']
+        player_dict['spirit_stones'], player_dict['hp'], player_dict['spirit_power'],
+        player_dict['max_spirit_power'], player_dict['attack'], player_dict['defense'],
+        player_dict['meditation_start_time'], player_dict['sect'], player_dict['sect_rank'],
+        player_dict['contribution'], player_dict['inventory'], player_dict['learned_skills'],
+        player_dict['current_mission'], player_dict['user_id']
     )
     db_manager.execute_query(sql, params)
 

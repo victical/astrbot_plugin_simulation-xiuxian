@@ -57,8 +57,46 @@ def fetch_query(sql, params=(), one=False):
         logger.error(f"数据库查询获取错误: {e}", exc_info=True)
         return None
 
+def _update_database_schema():
+    """检查并更新数据库表结构，用于平滑升级"""
+    logger.info("正在检查数据库表结构更新...")
+    try:
+        with create_connection() as conn:
+            if conn is None:
+                return
+            cursor = conn.cursor()
+            
+            # 检查 players 表的列信息
+            cursor.execute("PRAGMA table_info(players)")
+            columns = [row[1] for row in cursor.fetchall()]
+            
+            # 迁移：mp -> spirit_power
+            if 'mp' in columns and 'spirit_power' not in columns:
+                logger.info("检测到旧版 'mp' 字段，正在迁移到 'spirit_power'...")
+                cursor.execute("ALTER TABLE players RENAME COLUMN mp TO spirit_power")
+                logger.info("字段 'mp' 已成功重命名为 'spirit_power'。")
+
+            # 新增：max_spirit_power
+            if 'max_spirit_power' not in columns:
+                logger.info("正在添加 'max_spirit_power' 字段...")
+                # 注意：为现有用户设置一个合理的默认值，例如 100
+                cursor.execute("ALTER TABLE players ADD COLUMN max_spirit_power INTEGER NOT NULL DEFAULT 100")
+                logger.info("字段 'max_spirit_power' 已成功添加。")
+
+            # 新增：meditation_start_time
+            if 'meditation_start_time' not in columns:
+                logger.info("正在添加 'meditation_start_time' 字段...")
+                cursor.execute("ALTER TABLE players ADD COLUMN meditation_start_time TIMESTAMP")
+                logger.info("字段 'meditation_start_time' 已成功添加。")
+            
+            conn.commit()
+            logger.info("数据库表结构检查更新完成。")
+    except sqlite3.Error as e:
+        logger.error(f"更新数据库表结构时出错: {e}", exc_info=True)
+
 def initialize_database():
-    """初始化数据库，创建所有必要的表"""
+    """初始化数据库，创建所有必要的表，并执行数据迁移"""
     logger.info("正在初始化数据库...")
     execute_query(schemas.CREATE_PLAYERS_TABLE_SQL)
     logger.info("数据库表 'players' 已成功创建或已存在。")
+    _update_database_schema()  # 执行表结构更新检查

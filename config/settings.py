@@ -13,13 +13,16 @@ DATABASE_FILE = os.path.join(DATA_DIR, 'xiuxian_data.db')
 # 确保 data 文件夹存在
 os.makedirs(DATA_DIR, exist_ok=True)
 
+from . import cultivation_levels
+
 # 初始玩家属性
 INITIAL_PLAYER_STATS = {
     'level': '凡人',
     'experience': 0,
     'spirit_stones': 10,
     'hp': 100,
-    'mp': 50,
+    'spirit_power': 50,
+    'max_spirit_power': cultivation_levels.CULTIVATION_LEVELS['凡人']['max_spirit_power'],
     'attack': 10,
     'defense': 5,
     'sect': None,

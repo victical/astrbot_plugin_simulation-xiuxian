@@ -13,9 +13,10 @@ from .systems import (
 )
 
 # --- 指令常量 ---
-CMD_START_XIUXIAN = "我要修仙"
+CMD_START_XIUXIAN = "开始修仙"
 CMD_PLAYER_STATUS = "我的状态"
 CMD_MEDITATE = "打坐"
+CMD_STOP_MEDITATE = "结束打坐"
 CMD_SECT_LIST = "宗门列表"
 CMD_JOIN_SECT = "加入宗门"
 CMD_SECT_MISSION = "宗门任务"
@@ -71,7 +72,13 @@ class SimulationXiuxianPlugin(Star):
     @filter.command(CMD_MEDITATE, "静心打坐，提升修为")
     async def handle_meditate(self, event: AstrMessageEvent):
         user_id = str(event.get_sender_id())
-        message = progression_system.meditate(user_id)
+        message = progression_system.start_meditation(user_id)
+        yield event.plain_result(message)
+
+    @filter.command(CMD_STOP_MEDITATE, "结束打坐，查看收益")
+    async def handle_stop_meditation(self, event: AstrMessageEvent):
+        user_id = str(event.get_sender_id())
+        message = progression_system.stop_meditation(user_id)
         yield event.plain_result(message)
 
     @filter.command(CMD_SECT_LIST, "查看所有可加入的宗门")
@@ -131,5 +138,6 @@ class SimulationXiuxianPlugin(Star):
     @filter.command(CMD_EXPLORE, "外出探索，寻找机缘")
     async def handle_explore(self, event: AstrMessageEvent):
         user_id = str(event.get_sender_id())
-        message = exploration_system.explore(user_id)
+        provider = self.context.get_using_provider(umo=event.unified_msg_origin)
+        message = await exploration_system.explore(user_id, provider)
         yield event.plain_result(message)

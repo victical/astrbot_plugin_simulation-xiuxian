@@ -43,14 +43,17 @@ def start_game(user_id: str, user_name: str) -> str:
         experience=initial_stats['experience'],
         spirit_stones=initial_stats['spirit_stones'],
         hp=initial_stats['hp'],
-        mp=initial_stats['mp'],
+        spirit_power=initial_stats['spirit_power'],
+        max_spirit_power=initial_stats['max_spirit_power'],
         attack=initial_stats['attack'],
         defense=initial_stats['defense'],
+        meditation_start_time=None,
         sect=initial_stats['sect'],
         sect_rank=initial_stats['sect_rank'],
         contribution=initial_stats['contribution'],
-        inventory='{}',  # 初始为空的 JSON 对象
-        learned_skills='[]' # 初始为空的 JSON 数组
+        inventory='{}',
+        learned_skills='[]',
+        current_mission=None
     )
 
     # 3. 将新玩家存入数据库
