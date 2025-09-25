@@ -13,7 +13,7 @@ def get_player_by_id(user_id: str) -> Player | None:
     sql = """
     SELECT user_id, user_name, level, experience, spirit_stones, 
            hp, spirit_power, max_spirit_power, attack, defense, meditation_start_time,
-           sect, sect_rank, contribution, inventory, learned_skills, current_mission, 
+           sect, sect_rank, contribution, inventory, skills, equipment, current_mission, 
            created_at, updated_at
     FROM players 
     WHERE user_id = ?
@@ -36,8 +36,8 @@ def create_player(player: Player):
     sql = """
     INSERT INTO players (user_id, user_name, level, experience, spirit_stones, 
                          hp, spirit_power, max_spirit_power, attack, defense, meditation_start_time,
-                         sect, sect_rank, contribution, inventory, learned_skills, current_mission)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         sect, sect_rank, contribution, inventory, skills, equipment, current_mission)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
     player_dict = player.to_dict()
     params = (
@@ -46,7 +46,7 @@ def create_player(player: Player):
         player_dict['spirit_power'], player_dict['max_spirit_power'], player_dict['attack'],
         player_dict['defense'], player_dict['meditation_start_time'], player_dict['sect'],
         player_dict['sect_rank'], player_dict['contribution'], player_dict['inventory'],
-        player_dict['learned_skills'], player_dict['current_mission']
+        player_dict['skills'], player_dict['equipment'], player_dict['current_mission']
     )
     db_manager.execute_query(sql, params)
 
@@ -60,7 +60,7 @@ def update_player(player: Player):
         user_name = ?, level = ?, experience = ?, spirit_stones = ?,
         hp = ?, spirit_power = ?, max_spirit_power = ?, attack = ?, defense = ?,
         meditation_start_time = ?, sect = ?, sect_rank = ?, contribution = ?,
-        inventory = ?, learned_skills = ?, current_mission = ?,
+        inventory = ?, skills = ?, equipment = ?, current_mission = ?,
         updated_at = CURRENT_TIMESTAMP
     WHERE user_id = ?
     """
@@ -70,8 +70,8 @@ def update_player(player: Player):
         player_dict['spirit_stones'], player_dict['hp'], player_dict['spirit_power'],
         player_dict['max_spirit_power'], player_dict['attack'], player_dict['defense'],
         player_dict['meditation_start_time'], player_dict['sect'], player_dict['sect_rank'],
-        player_dict['contribution'], player_dict['inventory'], player_dict['learned_skills'],
-        player_dict['current_mission'], player_dict['user_id']
+        player_dict['contribution'], player_dict['inventory'], player_dict['skills'],
+        player_dict['equipment'], player_dict['current_mission'], player_dict['user_id']
     )
     db_manager.execute_query(sql, params)
 

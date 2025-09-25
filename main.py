@@ -12,6 +12,11 @@ from .systems import (
     exploration_system,
 )
 
+# 新增导入
+from .systems.elixir_system import use_elixir
+from .systems.crafting_system import craft_item, display_crafting_recipes
+from .systems.equipment_system import equip_item, unequip_item, show_equipment
+
 # --- 指令常量 ---
 CMD_START_XIUXIAN = "开始修仙"
 CMD_PLAYER_STATUS = "我的状态"
@@ -26,13 +31,19 @@ CMD_INVENTORY = "我的背包"
 CMD_SECT_SHOP = "宗门商店"
 CMD_EXCHANGE_ITEM = "兑换"
 CMD_EXPLORE = "探索"
+CMD_USE_ELIXIR = "服用"
+CMD_CRAFT_ITEM = "合成"
+CMD_CRAFTING_RECIPES = "合成配方"
+CMD_EQUIP_ITEM = "装备"
+CMD_UNEQUIP_ITEM = "卸下"
+CMD_SHOW_EQUIPMENT = "我的装备"
 
 
 @register(
     name="模拟修仙",
     author="Victical",
     desc="一个简单的文字模拟修仙插件",
-    version="0.0.2"
+    version="0.0.5"
 )
 class SimulationXiuxianPlugin(Star):
 
@@ -140,4 +151,51 @@ class SimulationXiuxianPlugin(Star):
         user_id = str(event.get_sender_id())
         provider = self.context.get_using_provider(umo=event.unified_msg_origin)
         message = await exploration_system.explore(user_id, provider)
+        yield event.plain_result(message)
+    
+    @filter.command(CMD_USE_ELIXIR, "服用丹药", args_desc="<丹药名称>")
+    async def handle_use_elixir(self, event: AstrMessageEvent, elixir_name: str = None):
+        user_id = str(event.get_sender_id())
+        if not elixir_name:
+            message = "请指定要服用的丹药名称，例如：`服用 养气丹`"
+        else:
+            message = use_elixir(user_id, elixir_name.strip())
+        yield event.plain_result(message)
+    
+    @filter.command(CMD_CRAFTING_RECIPES, "查看可合成的物品配方")
+    async def handle_crafting_recipes(self, event: AstrMessageEvent):
+        message = display_crafting_recipes()
+        yield event.plain_result(message)
+    
+    @filter.command(CMD_CRAFT_ITEM, "合成物品", args_desc="<物品名称>")
+    async def handle_craft_item(self, event: AstrMessageEvent, item_name: str = None):
+        user_id = str(event.get_sender_id())
+        if not item_name:
+            message = "请指定要合成的物品名称，例如：`合成 养气丹`"
+        else:
+            message = craft_item(user_id, item_name.strip())
+        yield event.plain_result(message)
+    
+    @filter.command(CMD_EQUIP_ITEM, "装备物品", args_desc="<物品名称>")
+    async def handle_equip_item(self, event: AstrMessageEvent, item_name: str = None):
+        user_id = str(event.get_sender_id())
+        if not item_name:
+            message = "请指定要装备的物品名称，例如：`装备 青木剑`"
+        else:
+            message = equip_item(user_id, item_name.strip())
+        yield event.plain_result(message)
+    
+    @filter.command(CMD_UNEQUIP_ITEM, "卸下装备", args_desc="<物品名称>")
+    async def handle_unequip_item(self, event: AstrMessageEvent, item_name: str = None):
+        user_id = str(event.get_sender_id())
+        if not item_name:
+            message = "请指定要卸下的物品名称，例如：`卸下 青木剑`"
+        else:
+            message = unequip_item(user_id, item_name.strip())
+        yield event.plain_result(message)
+    
+    @filter.command(CMD_SHOW_EQUIPMENT, "查看当前装备")
+    async def handle_show_equipment(self, event: AstrMessageEvent):
+        user_id = str(event.get_sender_id())
+        message = show_equipment(user_id)
         yield event.plain_result(message)

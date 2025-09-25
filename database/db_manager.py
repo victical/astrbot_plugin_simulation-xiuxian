@@ -88,6 +88,16 @@ def _update_database_schema():
                 logger.info("正在添加 'meditation_start_time' 字段...")
                 cursor.execute("ALTER TABLE players ADD COLUMN meditation_start_time TIMESTAMP")
                 logger.info("字段 'meditation_start_time' 已成功添加。")
+
+            if 'skills' not in columns:
+                logger.info("正在添加 'skills' 字段...")
+                cursor.execute("ALTER TABLE players ADD COLUMN skills TEXT")
+                logger.info("字段 'skills' 已成功添加。")
+
+            if 'equipment' not in columns:
+                logger.info("正在添加 'equipment' 字段...")
+                cursor.execute("ALTER TABLE players ADD COLUMN equipment TEXT")
+                logger.info("字段 'equipment' 已成功添加。")
             
             conn.commit()
             logger.info("数据库表结构检查更新完成。")
@@ -99,4 +109,15 @@ def initialize_database():
     logger.info("正在初始化数据库...")
     execute_query(schemas.CREATE_PLAYERS_TABLE_SQL)
     logger.info("数据库表 'players' 已成功创建或已存在。")
+    
+    # 创建新物品系统相关表
+    execute_query(schemas.CREATE_ITEMS_TABLE_SQL)
+    logger.info("数据库表 'items' 已成功创建或已存在。")
+    
+    execute_query(schemas.CREATE_PLAYER_ITEMS_TABLE_SQL)
+    logger.info("数据库表 'player_items' 已成功创建或已存在。")
+    
+    execute_query(schemas.CREATE_RECIPES_TABLE_SQL)
+    logger.info("数据库表 'recipes' 已成功创建或已存在。")
+    
     _update_database_schema()  # 执行表结构更新检查

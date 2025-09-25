@@ -52,7 +52,8 @@ def start_game(user_id: str, user_name: str) -> str:
         sect_rank=initial_stats['sect_rank'],
         contribution=initial_stats['contribution'],
         inventory='{}',
-        learned_skills='[]',
+        skills='[]',
+        equipment='{}',
         current_mission=None
     )
 

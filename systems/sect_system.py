@@ -4,6 +4,9 @@ from ..database.repositories import player_repository
 from ..config import sects_data
 from ..config.cultivation_levels import LEVEL_ORDER
 from . import progression_system
+from ..database.db_manager import execute_query, fetch_query
+from ..systems.item_system import ItemType
+import json
 
 def _check_and_process_promotion(player: "Player") -> str | None:
     """检查并处理玩家的宗门职位晋升，成功则返回祝贺消息"""
@@ -200,7 +203,6 @@ def complete_sect_mission(user_id: str) -> str:
         
     return message
 
-
 def get_sect_status(user_id: str) -> str:
     """获取玩家的宗门状态信息"""
     player = player_repository.get_player_by_id(user_id)
@@ -238,6 +240,11 @@ def get_sect_status(user_id: str) -> str:
             message_parts.append(f"下一职位: 【{next_rank_data['name']}】")
             message_parts.append(f"晋升要求: {req_contribution}贡献, {req_level}境界")
 
+    message_parts.append("\n【宗门指令】")
+    message_parts.append("- 宗门任务 - 接取任务")
+    message_parts.append("- 完成任务 - 完成任务")
+    message_parts.append("- 宗门商店 - 兑换物品")
+    
     return "\n".join(message_parts)
 
 
@@ -270,17 +277,181 @@ def list_exchangeable_items(user_id: str) -> str:
             items = sect_shop.get(rank_name, [])
             if items:
                 message_parts.append(f"[{rank_name} 可兑换]")
-                for item in items:
-                    accessible_items.append(item)
-                    message_parts.append(f"  【{item['name']}】 - 需要贡献: {item['cost']}")
+                # 按类型分组显示物品
+                elixirs = [item for item in items if item.get('type') == 'elixir']
+                weapons = [item for item in items if item.get('type') == 'weapon']
+                artifacts = [item for item in items if item.get('type') == 'artifact']
+                skills = [item for item in items if item.get('type') == 'skill']
+                materials = [item for item in items if item.get('type') == 'material']
+                
+                if elixirs:
+                    message_parts.append("  丹药类:")
+                    for item in elixirs:
+                        message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
+                        if item.get('description'):
+                            message_parts.append(f"      {item['description']}")
+                
+                if weapons:
+                    message_parts.append("  武器类:")
+                    for item in weapons:
+                        message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
+                        if item.get('description'):
+                            message_parts.append(f"      {item['description']}")
+                
+                if artifacts:
+                    message_parts.append("  法宝类:")
+                    for item in artifacts:
+                        message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
+                        if item.get('description'):
+                            message_parts.append(f"      {item['description']}")
+                
+                if skills:
+                    message_parts.append("  功法类:")
+                    for item in skills:
+                        message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
+                        if item.get('description'):
+                            message_parts.append(f"      {item['description']}")
+                
+                if materials:
+                    message_parts.append("  材料类:")
+                    for item in materials:
+                        message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
+                        if item.get('description'):
+                            message_parts.append(f"      {item['description']}")
+                
+                accessible_items.extend(items)
 
-    if not accessible_items:
+    # 添加新的高级物品兑换选项
+    high_level_items = _get_high_level_sect_items(player)
+    if high_level_items:
+        message_parts.append("\n[高级物品兑换]")
+        # 按类型分组显示高级物品
+        elixirs = [item for item in high_level_items if item.get('type') == 'elixir']
+        weapons = [item for item in high_level_items if item.get('type') == 'weapon']
+        artifacts = [item for item in high_level_items if item.get('type') == 'artifact']
+        skills = [item for item in high_level_items if item.get('type') == 'skill']
+        
+        if elixirs:
+            message_parts.append("  丹药类:")
+            for item in elixirs:
+                message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
+                if item.get('description'):
+                    message_parts.append(f"      {item['description']}")
+        
+        if weapons:
+            message_parts.append("  武器类:")
+            for item in weapons:
+                message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
+                if item.get('description'):
+                    message_parts.append(f"      {item['description']}")
+        
+        if artifacts:
+            message_parts.append("  法宝类:")
+            for item in artifacts:
+                message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
+                if item.get('description'):
+                    message_parts.append(f"      {item['description']}")
+        
+        if skills:
+            message_parts.append("  功法类:")
+            for item in skills:
+                message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
+                if item.get('description'):
+                    message_parts.append(f"      {item['description']}")
+
+    if not accessible_items and not high_level_items:
         return f"你在【{player.sect}】的职位({player.sect_rank})太低，宝库尚未对你开放。"
     
     message_parts.append("════════════════════")
     message_parts.append("使用 `兑换 [物品名称]` 来进行兑换。")
     return "\n".join(message_parts)
 
+def _get_high_level_sect_items(player) -> list:
+    """
+    获取高级宗门物品（由大模型生成的武器、法宝等）
+    """
+    # 根据玩家境界和宗门特性生成高级物品
+    player_level_index = LEVEL_ORDER.index(player.level)
+    
+    high_level_items = []
+    
+    # 高级武器
+    if player_level_index >= LEVEL_ORDER.index("筑基"):
+        high_level_items.append({
+            "name": "宗门传承剑",
+            "type": "weapon",
+            "cost": 500,
+            "level_requirement": "筑基",
+            "description": "宗门传承之剑，蕴含强大剑意"
+        })
+    
+    if player_level_index >= LEVEL_ORDER.index("金丹"):
+        high_level_items.append({
+            "name": "宗门镇派神剑",
+            "type": "weapon", 
+            "cost": 2000,
+            "level_requirement": "金丹",
+            "description": "宗门镇派之宝，剑出如龙"
+        })
+        
+    # 高级法宝
+    if player_level_index >= LEVEL_ORDER.index("筑基"):
+        high_level_items.append({
+            "name": "宗门护体玉佩",
+            "type": "artifact",
+            "cost": 600,
+            "level_requirement": "筑基",
+            "description": "宗门长老炼制的护体法宝"
+        })
+        
+    if player_level_index >= LEVEL_ORDER.index("金丹"):
+        high_level_items.append({
+            "name": "宗门乾坤袋",
+            "type": "artifact",
+            "cost": 2500,
+            "level_requirement": "金丹",
+            "description": "可装万物的储物法宝"
+        })
+        
+    # 高级丹药
+    if player_level_index >= LEVEL_ORDER.index("筑基"):
+        high_level_items.append({
+            "name": "筑基突破丹",
+            "type": "elixir",
+            "cost": 800,
+            "level_requirement": "筑基",
+            "description": "辅助筑基突破的神丹"
+        })
+        
+    if player_level_index >= LEVEL_ORDER.index("金丹"):
+        high_level_items.append({
+            "name": "金丹凝形丸",
+            "type": "elixir",
+            "cost": 3000,
+            "level_requirement": "金丹",
+            "description": "稳固金丹的无上妙药"
+        })
+        
+    # 高级功法
+    if player_level_index >= LEVEL_ORDER.index("筑基"):
+        high_level_items.append({
+            "name": "宗门高级心法",
+            "type": "skill",
+            "cost": 1000,
+            "level_requirement": "筑基",
+            "description": "宗门不传之秘，可大幅提升修为"
+        })
+        
+    if player_level_index >= LEVEL_ORDER.index("金丹"):
+        high_level_items.append({
+            "name": "宗门无上大道",
+            "type": "skill",
+            "cost": 5000,
+            "level_requirement": "金丹",
+            "description": "宗门至高心法，可证道长生"
+        })
+        
+    return high_level_items
 
 def exchange_item(user_id: str, item_name_to_buy: str) -> str:
     """处理玩家兑换物品的逻辑"""
@@ -314,6 +485,15 @@ def exchange_item(user_id: str, item_name_to_buy: str) -> str:
         if target_item:
             break
 
+    # 检查是否是高级物品
+    if not target_item:
+        high_level_items = _get_high_level_sect_items(player)
+        for item in high_level_items:
+            if item['name'] == item_name_to_buy:
+                target_item = item
+                can_exchange = True
+                break
+
     if not target_item or not can_exchange:
         return f"你的职位({player.sect_rank})无法兑换【{item_name_to_buy}】，或者该物品不存在。"
 
@@ -326,17 +506,61 @@ def exchange_item(user_id: str, item_name_to_buy: str) -> str:
     player.contribution -= target_item['cost']
     
     # 2. 添加物品到背包
-    # 如果背包中已有该物品，则数量+1
-    if item_name_to_buy in player.inventory:
-        player.inventory[item_name_to_buy]['quantity'] += 1
-    # 如果没有，则新增
+    # 如果是新物品系统中的物品类型
+    if target_item.get('type') in [ItemType.WEAPON, ItemType.ARTIFACT, ItemType.ELIXIR, ItemType.SKILL]:
+        # 直接添加到新物品系统
+        _add_item_to_player_new_system(user_id, target_item)
     else:
-        player.inventory[item_name_to_buy] = {
-            "quantity": 1,
-            "type": target_item['type']
-        }
+        # 添加到传统背包系统
+        # 如果背包中已有该物品，则数量+1
+        if item_name_to_buy in player.inventory:
+            player.inventory[item_name_to_buy]['quantity'] += 1
+        # 如果没有，则新增
+        else:
+            player.inventory[item_name_to_buy] = {
+                "quantity": 1,
+                "type": target_item['type']
+            }
         
     # 3. 保存更新到数据库
     player_repository.update_player(player)
 
     return f"兑换成功！你花费了 {target_item['cost']} 贡献，获得了【{target_item['name']}】x1。可使用 `我的背包` 查看。"
+
+def _add_item_to_player_new_system(user_id: str, item_info: dict):
+    """
+    添加物品到玩家的新物品系统
+    """
+    # 检查物品是否已存在
+    sql = "SELECT id FROM items WHERE name = ?"
+    result = fetch_query(sql, (item_info['name'],), one=True)
+    
+    if not result:
+        # 创建物品
+        sql = """
+        INSERT INTO items (name, type, level_requirement, description)
+        VALUES (?, ?, ?, ?)
+        """
+        description = item_info.get('description', f"宗门商店兑换获得的{item_info['type']}")
+        execute_query(sql, (
+            item_info['name'],
+            item_info['type'],
+            item_info.get('level_requirement', '凡人'),
+            description
+        ))
+        result = fetch_query("SELECT id FROM items WHERE name = ?", (item_info['name'],), one=True)
+    
+    item_id = result[0]
+    
+    # 检查玩家是否已有该物品
+    sql = "SELECT id FROM player_items WHERE player_id = ? AND item_id = ?"
+    result = fetch_query(sql, (user_id, item_id), one=True)
+    
+    if result:
+        # 增加数量
+        sql = "UPDATE player_items SET quantity = quantity + 1 WHERE id = ?"
+        execute_query(sql, (result[0],))
+    else:
+        # 添加新物品
+        sql = "INSERT INTO player_items (player_id, item_id, quantity) VALUES (?, ?, 1)"
+        execute_query(sql, (user_id, item_id))

@@ -14,6 +14,6 @@ help: |
   - 宗门商店: 查看宗门商店可兑换的物品
   - 兑换 <物品名称>: 在宗门商店兑换物品
   - 探索: 外出探索，寻找机缘
-version: v0.0.3
+version: v0.0.5
 author: Victical # 作者
 repo: https://github.com/victical/astrbot_plugin_simulation-xiuxian # 插件的仓库地址

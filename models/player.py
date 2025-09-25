@@ -6,7 +6,7 @@ class Player:
     def __init__(self, user_id, user_name, level, experience, spirit_stones, 
                  hp, spirit_power, max_spirit_power, attack, defense, meditation_start_time,
                  sect, sect_rank, contribution, 
-                 inventory=None, learned_skills=None, current_mission=None, 
+                 inventory=None, skills=None, equipment=None, current_mission=None, 
                  created_at=None, updated_at=None):
         self.user_id = user_id
         self.user_name = user_name
@@ -24,7 +24,8 @@ class Player:
         self.contribution = contribution
         
         self.inventory = json.loads(inventory) if inventory else {}
-        self.learned_skills = json.loads(learned_skills) if learned_skills else []
+        self.skills = json.loads(skills) if skills else []
+        self.equipment = json.loads(equipment) if equipment else {}
         self.current_mission = json.loads(current_mission) if current_mission and current_mission != 'null' else None
 
         self.created_at = created_at
@@ -48,7 +49,8 @@ class Player:
             "sect_rank": self.sect_rank,
             "contribution": self.contribution,
             "inventory": json.dumps(self.inventory, ensure_ascii=False),
-            "learned_skills": json.dumps(self.learned_skills, ensure_ascii=False),
+            "skills": json.dumps(self.skills, ensure_ascii=False),
+            "equipment": json.dumps(self.equipment, ensure_ascii=False),
             "current_mission": json.dumps(self.current_mission, ensure_ascii=False) if self.current_mission else None
         }
 
