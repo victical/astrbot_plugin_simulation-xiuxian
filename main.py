@@ -1,4 +1,4 @@
-from astrbot.core import logger
+from astrbot.api import logger
 from astrbot.api.star import Context, Star, register
 from astrbot.api.event import AstrMessageEvent, filter
 from astrbot.api import AstrBotConfig
@@ -39,12 +39,6 @@ CMD_UNEQUIP_ITEM = "卸下"
 CMD_SHOW_EQUIPMENT = "我的装备"
 
 
-@register(
-    name="模拟修仙",
-    author="Victical",
-    desc="一个简单的文字模拟修仙插件",
-    version="0.0.5"
-)
 class SimulationXiuxianPlugin(Star):
 
     def __init__(self, context: Context, config: AstrBotConfig = None):
