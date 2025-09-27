@@ -8,7 +8,7 @@ from ..database.db_manager import execute_query, fetch_query
 from ..systems.item_system import ItemType
 import json
 
-def _check_and_process_promotion(player: "Player") -> str | None:
+async def _check_and_process_promotion(player: "Player") -> str | None:
     """检查并处理玩家的宗门职位晋升，成功则返回祝贺消息"""
     if not player.sect:
         return None
@@ -49,518 +49,288 @@ def _check_and_process_promotion(player: "Player") -> str | None:
         player.sect_rank = new_rank
         
         promotion_message = [f"恭喜！你在【{player.sect}】的职位从【{old_rank}】提升为【{new_rank}】！"]
-        
-        # 发放晋升奖励
-        reward = next_rank_data.get("promotion_reward", {})
-        if "spirit_stones" in reward:
-            player.spirit_stones += reward["spirit_stones"]
-            promotion_message.append(f"获得晋升奖励：灵石 x{reward['spirit_stones']}！")
-        
-        if "items" in reward:
-            for item_info in reward["items"]:
-                item_name = item_info["name"]
-                quantity = item_info.get("quantity", 1)
-                if item_name in player.inventory:
-                    player.inventory[item_name]["quantity"] += quantity
-                else:
-                    # 假设奖励物品都是丹药类型，后续可扩展
-                    player.inventory[item_name] = {"quantity": quantity, "type": "丹药"}
-                promotion_message.append(f"获得晋升奖励：{item_name} x{quantity}！")
+
+        # --- 晋升奖励 ---
+        rewards = next_rank_data.get("rewards", {})
+        reward_spirit_stones = rewards.get("spirit_stones", 0)
+        if reward_spirit_stones > 0:
+            player.spirit_stones += reward_spirit_stones
+            promotion_message.append(f"获得了 {reward_spirit_stones} 灵石奖励。")
+
+        # 属性提升
+        stat_bonuses = rewards.get("stat_bonuses", {})
+        hp_bonus = stat_bonuses.get("hp", 0)
+        attack_bonus = stat_bonuses.get("attack", 0)
+        defense_bonus = stat_bonuses.get("defense", 0)
+
+        if hp_bonus > 0:
+            player.hp += hp_bonus
+            promotion_message.append(f"气血上限增加 {hp_bonus}。")
+
+        if attack_bonus > 0:
+            player.attack += attack_bonus
+            promotion_message.append(f"攻击增加 {attack_bonus}。")
+
+        if defense_bonus > 0:
+            player.defense += defense_bonus
+            promotion_message.append(f"防御增加 {defense_bonus}。")
 
         return "\n".join(promotion_message)
 
     return None
 
+async def join_sect(user_id: str, sect_name: str) -> str:
+    """
+    加入一个宗门。
+    :param user_id: 用户ID
+    :param sect_name: 宗门名称
+    """
+    # 1. 验证宗门是否存在
+    if sect_name not in sects_data.SECTS_DATA:
+        return f"不存在名为【{sect_name}】的宗门。请检查名称是否正确。"
+
+    # 2. 获取玩家信息
+    player = await player_repository.get_player_by_id(user_id)
+    if not player:
+        return "道友，你尚未踏入仙途。请输入 `开始修仙` 开启你的旅程。"
+
+    # 3. 检查玩家是否已经加入了宗门
+    if player.sect:
+        return f"你已经是【{player.sect}】的弟子了，不可再入他门。"
+
+    # 4. 设置玩家的宗门和初始职位
+    player.sect = sect_name
+    # 获取宗门的最低职位
+    sect_info = sects_data.SECTS_DATA[sect_name]
+    initial_rank = sect_info["ranks"][0]["name"] if sect_info.get("ranks") else "外门弟子"
+    player.sect_rank = initial_rank
+    player.contribution = 0  # 初始化贡献度
+
+    # 5. 保存更新
+    await player_repository.update_player(player)
+
+    return f"恭喜你成功加入【{sect_name}】，当前职位为【{initial_rank}】！"
+
+async def get_sect_mission(user_id: str) -> str:
+    """
+    获取当前宗门任务。
+    :param user_id: 用户ID
+    """
+    player = await player_repository.get_player_by_id(user_id)
+    if not player:
+        return "道友，你尚未踏入仙途。请输入 `开始修仙` 开启你的旅程。"
+
+    if not player.sect:
+        return "你还未加入任何宗门。请先使用 `宗门列表` 和 `加入宗门 <宗门名>` 命令。"
+
+    # 检查是否有正在进行的任务
+    if player.current_mission and player.current_mission != 'null':
+        mission_data = json.loads(player.current_mission)
+        return _format_mission_message(mission_data)
+
+    # 生成新任务
+    sect_info = sects_data.SECTS_DATA[player.sect]
+    missions = sect_info.get("missions", [])
+    if not missions:
+        return f"【{player.sect}】暂无任务可接。"
+
+    # 随机分配一个任务
+    mission = random.choice(missions)
+    mission_data = {
+        "type": mission["type"],
+        "description": mission["description"],
+        "target": mission.get("target", ""),
+        "reward": mission["reward"]
+    }
+
+    # 保存任务到玩家数据
+    player.current_mission = json.dumps(mission_data)
+    await player_repository.update_player(player)
+
+    return _format_mission_message(mission_data)
+
+def _format_mission_message(mission_data: dict) -> str:
+    """格式化任务信息"""
+    reward_info = mission_data["reward"]
+    reward_parts = []
+    if reward_info.get("contribution"):
+        reward_parts.append(f"{reward_info['contribution']} 贡献")
+    if reward_info.get("spirit_stones"):
+        reward_parts.append(f"{reward_info['spirit_stones']} 灵石")
+    if reward_info.get("exp"):
+        reward_parts.append(f"{reward_info['exp']} 修为")
+
+    reward_str = "、".join(reward_parts) if reward_parts else "无"
+
+    return (
+        f"📜 当前宗门任务：\n"
+        f"任务描述: {mission_data['description']}\n"
+        f"任务奖励: {reward_str}\n"
+        f"使用 `完成任务` 来完成当前任务。"
+    )
+
+async def complete_sect_mission(user_id: str) -> str:
+    """
+    完成当前宗门任务。
+    :param user_id: 用户ID
+    """
+    player = await player_repository.get_player_by_id(user_id)
+    if not player:
+        return "道友，你尚未踏入仙途。请输入 `开始修仙` 开启你的旅程。"
+
+    if not player.sect:
+        return "你还未加入任何宗门。"
+
+    if not player.current_mission or player.current_mission == 'null':
+        return "你当前没有进行中的宗门任务。使用 `宗门任务` 来获取一个新任务。"
+
+    # 解析任务数据
+    mission_data = json.loads(player.current_mission)
+    reward = mission_data["reward"]
+
+    # 发放奖励
+    messages = ["🎉 宗门任务完成！"]
+    if reward.get("contribution"):
+        player.contribution += reward["contribution"]
+        messages.append(f"获得 {reward['contribution']} 贡献度。")
+
+    if reward.get("spirit_stones"):
+        player.spirit_stones += reward["spirit_stones"]
+        messages.append(f"获得 {reward['spirit_stones']} 灵石。")
+
+    if reward.get("exp"):
+        player.experience += reward["exp"]
+        messages.append(f"获得 {reward['exp']} 修为。")
+        
+        # 检查是否升级
+        levelup_msg = await progression_system._check_and_process_levelup(player)
+        if levelup_msg:
+            messages.append(levelup_msg)
+
+    # 清除任务
+    player.current_mission = 'null'
+
+    # 检查晋升
+    promotion_msg = await _check_and_process_promotion(player)
+    if promotion_msg:
+        messages.append(promotion_msg)
+
+    # 保存更新
+    await player_repository.update_player(player)
+
+    return "\n".join(messages)
+
+async def get_sect_status(user_id: str) -> str:
+    """
+    获取玩家所在宗门的信息。
+    :param user_id: 用户ID
+    """
+    player = await player_repository.get_player_by_id(user_id)
+    if not player:
+        return "道友，你尚未踏入仙途。请输入 `开始修仙` 开启你的旅程。"
+
+    if not player.sect:
+        return "你还未加入任何宗门。请先使用 `宗门列表` 和 `加入宗门 <宗门名>` 命令。"
+
+    sect_info = sects_data.SECTS_DATA[player.sect]
+    return (
+        f"🏛️ 所在宗门: {player.sect}\n"
+        f"道士职业: {player.sect_rank}\n"
+        f"道士职业贡献: {player.contribution}\n"
+        f"宗门介绍: {sect_info.get('description', '暂无介绍')}"
+    )
 
 def list_all_sects() -> str:
-    """
-    列出所有可用的宗门及其简介。
-    :return: 格式化后的宗门列表字符串。
-    """
-    if not sects_data.SECTS_DATA:
-        return "天地初开，混沌一片，暂无宗门创立。"
+    """列出所有可加入的宗门"""
+    sect_list = []
+    for sect_name, sect_info in sects_data.SECTS_DATA.items():
+        sect_list.append(f"🔹 {sect_name}: {sect_info.get('description', '暂无介绍')}")
 
-    message_parts = ["═══ 天下宗门 ═══"]
-    for sect_name, data in sects_data.SECTS_DATA.items():
-        description = data.get('description', '暂无简介')
-        message_parts.append(f"【{sect_name}】: {description}")
-    
-    message_parts.append("══════════════")
-    message_parts.append("使用 `加入宗门 [名称]` 来加入你心仪的宗门。")
-    
-    return "\n".join(message_parts)
+    if not sect_list:
+        return "目前暂无可加入的宗门。"
 
-def join_sect(user_id: str, sect_name_to_join: str) -> str:
-    """
-    处理玩家加入宗门的逻辑。
-    :param user_id: 玩家的唯一ID。
-    :param sect_name_to_join: 玩家想要加入的宗门名称。
-    :return: 操作结果的消息。
-    """
-    player = player_repository.get_player_by_id(user_id)
+    return "🏛️ 可加入的宗门列表：\n" + "\n".join(sect_list)
 
+async def list_exchangeable_items(user_id: str) -> str:
+    """
+    列出宗门商店中可兑换的物品。
+    :param user_id: 用户ID
+    """
+    player = await player_repository.get_player_by_id(user_id)
     if not player:
-        return "道友，你尚未踏入仙途。请输入 `!开始修仙` 开启你的旅程。"
+        return "道友，你尚未踏入仙途。请输入 `开始修仙` 开启你的旅程。"
 
-    # 1. 检查玩家是否已有所属宗门
-    if player.sect:
-        return f"道友已是【{player.sect}】的弟子，不可背叛师门，加入他派。"
-
-    # 2. 检查想加入的宗门是否存在
-    if sect_name_to_join not in sects_data.SECTS_DATA:
-        return f"寻遍天下，也未曾听闻名为【{sect_name_to_join}】的宗门。使用 `宗门列表` 查看所有宗门。"
-
-    # 3. 执行加入宗门的逻辑
-    sect_info = sects_data.SECTS_DATA[sect_name_to_join]
-    
-    # 分配初始职位
-    initial_rank_data = sect_info.get('ranks', [{}])[0]
-    initial_rank = initial_rank_data.get('name', '外门弟子')
-    
-    player.sect = sect_name_to_join
-    player.sect_rank = initial_rank
-    
-    # 将更新保存到数据库
-    player_repository.update_player(player)
-
-    return f"恭喜道友！你已成功拜入【{sect_name_to_join}】，成为一名光荣的“{initial_rank}”。"
-
-
-def get_sect_mission(user_id: str) -> str:
-    """处理玩家领取宗门任务的逻辑"""
-    player = player_repository.get_player_by_id(user_id)
-
-    if not player:
-        return "道友，你尚未踏入仙途。"
-    
     if not player.sect:
-        return "你尚未加入任何宗门，无法领取任务。使用 `宗门列表` 查看可加入的宗门。"
+        return "你还未加入任何宗门。"
 
-    if player.current_mission:
-        mission_name = player.current_mission.get('name', '未知任务')
-        return f"你身上已经有一个任务【{mission_name}】了，请先用 `!完成任务` 复命。"
-
-    # 从配置中获取该宗门的任务列表
-    available_missions = sects_data.SECTS_DATA.get(player.sect, {}).get('missions', [])
-    if not available_missions:
-        return f"你的宗门【{player.sect}】目前无事发生，暂无任务可领。"
-
-    # 随机选择一个任务
-    chosen_mission = random.choice(available_missions)
+    sect_info = sects_data.SECTS_DATA[player.sect]
+    shop_items = sect_info.get("shop", [])
     
-    player.current_mission = chosen_mission
-    player_repository.update_player(player)
+    if not shop_items:
+        return f"【{player.sect}】暂未开放商店。"
 
-    return f"你领取了新的宗门任务：\n【{chosen_mission['name']}】\n描述：{chosen_mission['description']}"
+    item_lines = []
+    for item in shop_items:
+        item_lines.append(
+            f"🔸 {item['name']} - {item['cost']} 贡献\n"
+            f"   {item.get('description', '暂无描述')}"
+        )
 
-def complete_sect_mission(user_id: str) -> str:
-    """处理玩家完成宗门任务的逻辑"""
-    player = player_repository.get_player_by_id(user_id)
-
-    if not player:
-        return "道友，你尚未踏入仙途。"
-
-    if not player.current_mission:
-        return "你身上没有任务，快去 `宗门任务` 领取一个吧。"
-
-    mission_data = player.current_mission
-    rewards = mission_data.get('rewards', {})
-    
-    # 发放奖励
-    con_gain = rewards.get('contribution', 0)
-    exp_gain = rewards.get('experience', 0)
-    stone_gain = rewards.get('spirit_stones', 0)
-
-    player.contribution += con_gain
-    player.experience += exp_gain
-    player.spirit_stones += stone_gain
-    
-    # 完成后清空任务
-    player.current_mission = None
-    
-    # 检查是否升级（重用 progression_system 的逻辑）
-    levelup_message = progression_system._check_and_process_levelup(player)
-
-    # 新增：检查是否晋升
-    promotion_message = _check_and_process_promotion(player)
-    
-    # 保存所有更新
-    player_repository.update_player(player)
-    
-    message = (
-        f"你成功完成了任务【{mission_data['name']}】！\n"
-        f"获得奖励：\n"
-        f" - 宗门贡献 +{con_gain}\n"
-        f" - 修为 +{exp_gain}\n"
-        f" - 灵石 +{stone_gain}"
+    return (
+        f"🛍️【{player.sect}】宗门商店\n"
+        f"你的贡献: {player.contribution}\n"
+        f"可兑换物品:\n" + "\n".join(item_lines)
     )
-    
-    if levelup_message:
-        message += "\n\n" + levelup_message
-    
-    if promotion_message:
-        message += "\n\n" + promotion_message
-        
-    return message
 
-def get_sect_status(user_id: str) -> str:
-    """获取玩家的宗门状态信息"""
-    player = player_repository.get_player_by_id(user_id)
-
+async def exchange_item(user_id: str, item_name: str) -> str:
+    """
+    在宗门商店兑换物品。
+    :param user_id: 用户ID
+    :param item_name: 物品名称
+    """
+    player = await player_repository.get_player_by_id(user_id)
     if not player:
-        return "道友，你尚未踏入仙途。"
-    
+        return "道友，你尚未踏入仙途。请输入 `开始修仙` 开启你的旅程。"
+
     if not player.sect:
-        return "你尚未加入任何宗门。使用 `宗门列表` 查看可加入的宗门。"
+        return "你还未加入任何宗门。"
 
-    sect_info = sects_data.SECTS_DATA.get(player.sect, {})
-    ranks = sect_info.get("ranks", [])
+    sect_info = sects_data.SECTS_DATA[player.sect]
+    shop_items = sect_info.get("shop", [])
     
-    message_parts = [
-        f"═══【{player.sect} - 个人信息】═══",
-        f"道号: {player.user_name}",
-        f"职位: {player.sect_rank}",
-        f"贡献: {player.contribution}",
-        "════════════════════"
-    ]
-
-    # 显示下一级晋升条件
-    current_rank_index = -1
-    for i, rank_data in enumerate(ranks):
-        if rank_data["name"] == player.sect_rank:
-            current_rank_index = i
-            break
-
-    if 0 <= current_rank_index < len(ranks) - 1:
-        next_rank_data = ranks[current_rank_index + 1]
-        req = next_rank_data.get("promotion_req")
-        if req:
-            req_contribution = req.get("contribution", "无")
-            req_level = req.get("level", "无")
-            message_parts.append(f"下一职位: 【{next_rank_data['name']}】")
-            message_parts.append(f"晋升要求: {req_contribution}贡献, {req_level}境界")
-
-    message_parts.append("\n【宗门指令】")
-    message_parts.append("- 宗门任务 - 接取任务")
-    message_parts.append("- 完成任务 - 完成任务")
-    message_parts.append("- 宗门商店 - 兑换物品")
-    
-    return "\n".join(message_parts)
-
-
-def list_exchangeable_items(user_id: str) -> str:
-    """列出玩家当前可兑换的宗门物品"""
-    player = player_repository.get_player_by_id(user_id)
-
-    if not player or not player.sect:
-        return "散修一枚，何谈宗门贡献。快去 `!加入宗门` 吧！"
-
-    sect_shop = sects_data.SECTS_DATA.get(player.sect, {}).get('exchange_shop', {})
-    
-    message_parts = [
-        f"═══【{player.sect} - 宝库】═══",
-        f"你当前的贡献为: {player.contribution}",
-        f"你的职位为: {player.sect_rank}",
-        "----------"
-    ]
-
-    # 获取所有低于或等于当前职位的可兑换物品
-    player_rank_index = -1
-    all_ranks = [r['name'] for r in sects_data.SECTS_DATA.get(player.sect, {}).get('ranks', [])]
-    if player.sect_rank in all_ranks:
-        player_rank_index = all_ranks.index(player.sect_rank)
-
-    accessible_items = []
-    if player_rank_index != -1:
-        for i in range(player_rank_index + 1):
-            rank_name = all_ranks[i]
-            items = sect_shop.get(rank_name, [])
-            if items:
-                message_parts.append(f"[{rank_name} 可兑换]")
-                # 按类型分组显示物品
-                elixirs = [item for item in items if item.get('type') == 'elixir']
-                weapons = [item for item in items if item.get('type') == 'weapon']
-                artifacts = [item for item in items if item.get('type') == 'artifact']
-                skills = [item for item in items if item.get('type') == 'skill']
-                materials = [item for item in items if item.get('type') == 'material']
-                
-                if elixirs:
-                    message_parts.append("  丹药类:")
-                    for item in elixirs:
-                        message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
-                        if item.get('description'):
-                            message_parts.append(f"      {item['description']}")
-                
-                if weapons:
-                    message_parts.append("  武器类:")
-                    for item in weapons:
-                        message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
-                        if item.get('description'):
-                            message_parts.append(f"      {item['description']}")
-                
-                if artifacts:
-                    message_parts.append("  法宝类:")
-                    for item in artifacts:
-                        message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
-                        if item.get('description'):
-                            message_parts.append(f"      {item['description']}")
-                
-                if skills:
-                    message_parts.append("  功法类:")
-                    for item in skills:
-                        message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
-                        if item.get('description'):
-                            message_parts.append(f"      {item['description']}")
-                
-                if materials:
-                    message_parts.append("  材料类:")
-                    for item in materials:
-                        message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
-                        if item.get('description'):
-                            message_parts.append(f"      {item['description']}")
-                
-                accessible_items.extend(items)
-
-    # 添加新的高级物品兑换选项
-    high_level_items = _get_high_level_sect_items(player)
-    if high_level_items:
-        message_parts.append("\n[高级物品兑换]")
-        # 按类型分组显示高级物品
-        elixirs = [item for item in high_level_items if item.get('type') == 'elixir']
-        weapons = [item for item in high_level_items if item.get('type') == 'weapon']
-        artifacts = [item for item in high_level_items if item.get('type') == 'artifact']
-        skills = [item for item in high_level_items if item.get('type') == 'skill']
-        
-        if elixirs:
-            message_parts.append("  丹药类:")
-            for item in elixirs:
-                message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
-                if item.get('description'):
-                    message_parts.append(f"      {item['description']}")
-        
-        if weapons:
-            message_parts.append("  武器类:")
-            for item in weapons:
-                message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
-                if item.get('description'):
-                    message_parts.append(f"      {item['description']}")
-        
-        if artifacts:
-            message_parts.append("  法宝类:")
-            for item in artifacts:
-                message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
-                if item.get('description'):
-                    message_parts.append(f"      {item['description']}")
-        
-        if skills:
-            message_parts.append("  功法类:")
-            for item in skills:
-                message_parts.append(f"    【{item['name']}】 - 需要贡献: {item['cost']}")
-                if item.get('description'):
-                    message_parts.append(f"      {item['description']}")
-
-    if not accessible_items and not high_level_items:
-        return f"你在【{player.sect}】的职位({player.sect_rank})太低，宝库尚未对你开放。"
-    
-    message_parts.append("════════════════════")
-    message_parts.append("使用 `兑换 [物品名称]` 来进行兑换。")
-    return "\n".join(message_parts)
-
-def _get_high_level_sect_items(player) -> list:
-    """
-    获取高级宗门物品（由大模型生成的武器、法宝等）
-    """
-    # 根据玩家境界和宗门特性生成高级物品
-    player_level_index = LEVEL_ORDER.index(player.level)
-    
-    high_level_items = []
-    
-    # 高级武器
-    if player_level_index >= LEVEL_ORDER.index("筑基"):
-        high_level_items.append({
-            "name": "宗门传承剑",
-            "type": "weapon",
-            "cost": 500,
-            "level_requirement": "筑基",
-            "description": "宗门传承之剑，蕴含强大剑意"
-        })
-    
-    if player_level_index >= LEVEL_ORDER.index("金丹"):
-        high_level_items.append({
-            "name": "宗门镇派神剑",
-            "type": "weapon", 
-            "cost": 2000,
-            "level_requirement": "金丹",
-            "description": "宗门镇派之宝，剑出如龙"
-        })
-        
-    # 高级法宝
-    if player_level_index >= LEVEL_ORDER.index("筑基"):
-        high_level_items.append({
-            "name": "宗门护体玉佩",
-            "type": "artifact",
-            "cost": 600,
-            "level_requirement": "筑基",
-            "description": "宗门长老炼制的护体法宝"
-        })
-        
-    if player_level_index >= LEVEL_ORDER.index("金丹"):
-        high_level_items.append({
-            "name": "宗门乾坤袋",
-            "type": "artifact",
-            "cost": 2500,
-            "level_requirement": "金丹",
-            "description": "可装万物的储物法宝"
-        })
-        
-    # 高级丹药
-    if player_level_index >= LEVEL_ORDER.index("筑基"):
-        high_level_items.append({
-            "name": "筑基突破丹",
-            "type": "elixir",
-            "cost": 800,
-            "level_requirement": "筑基",
-            "description": "辅助筑基突破的神丹"
-        })
-        
-    if player_level_index >= LEVEL_ORDER.index("金丹"):
-        high_level_items.append({
-            "name": "金丹凝形丸",
-            "type": "elixir",
-            "cost": 3000,
-            "level_requirement": "金丹",
-            "description": "稳固金丹的无上妙药"
-        })
-        
-    # 高级功法
-    if player_level_index >= LEVEL_ORDER.index("筑基"):
-        high_level_items.append({
-            "name": "宗门高级心法",
-            "type": "skill",
-            "cost": 1000,
-            "level_requirement": "筑基",
-            "description": "宗门不传之秘，可大幅提升修为"
-        })
-        
-    if player_level_index >= LEVEL_ORDER.index("金丹"):
-        high_level_items.append({
-            "name": "宗门无上大道",
-            "type": "skill",
-            "cost": 5000,
-            "level_requirement": "金丹",
-            "description": "宗门至高心法，可证道长生"
-        })
-        
-    return high_level_items
-
-def exchange_item(user_id: str, item_name_to_buy: str) -> str:
-    """处理玩家兑换物品的逻辑"""
-    player = player_repository.get_player_by_id(user_id)
-
-    if not player or not player.sect:
-        return "散修一枚，何谈宗门贡献。"
-
-    sect_shop = sects_data.SECTS_DATA.get(player.sect, {}).get('exchange_shop', {})
-    
-    # 查找玩家想兑换的物品，并检查其职位是否足够
-    player_rank_index = -1
-    all_ranks = [r['name'] for r in sects_data.SECTS_DATA.get(player.sect, {}).get('ranks', [])]
-    if player.sect_rank in all_ranks:
-        player_rank_index = all_ranks.index(player.sect_rank)
-
+    # 查找物品
     target_item = None
-    can_exchange = False
-    
-    # 遍历所有职位等级的商店
-    for i in range(len(all_ranks)):
-        rank_name = all_ranks[i]
-        items_in_rank = sect_shop.get(rank_name, [])
-        for item in items_in_rank:
-            if item['name'] == item_name_to_buy:
-                target_item = item
-                # 检查玩家职位是否达到兑换要求
-                if player_rank_index >= i:
-                    can_exchange = True
-                break
-        if target_item:
+    for item in shop_items:
+        if item["name"] == item_name:
+            target_item = item
             break
 
-    # 检查是否是高级物品
     if not target_item:
-        high_level_items = _get_high_level_sect_items(player)
-        for item in high_level_items:
-            if item['name'] == item_name_to_buy:
-                target_item = item
-                can_exchange = True
-                break
-
-    if not target_item or not can_exchange:
-        return f"你的职位({player.sect_rank})无法兑换【{item_name_to_buy}】，或者该物品不存在。"
+        return f"【{player.sect}】的商店中没有名为【{item_name}】的物品。"
 
     # 检查贡献度是否足够
-    if player.contribution < target_item['cost']:
-        return f"贡献不足！兑换【{target_item['name']}】需要 {target_item['cost']} 贡献，你只有 {player.contribution}。"
+    cost = target_item["cost"]
+    if player.contribution < cost:
+        return f"你的贡献度不足。需要 {cost} 贡献，当前只有 {player.contribution} 贡献。"
 
-    # --- 执行兑换 ---
-    # 1. 扣除贡献
-    player.contribution -= target_item['cost']
+    # 扣除贡献度
+    player.contribution -= cost
+
+    # 将物品添加到玩家背包
+    inventory = json.loads(player.inventory) if player.inventory and player.inventory != 'null' else {}
+    item_type = target_item.get("type", ItemType.CONSUMABLE.value)
     
-    # 2. 添加物品到背包
-    # 如果是新物品系统中的物品类型
-    if target_item.get('type') in [ItemType.WEAPON, ItemType.ARTIFACT, ItemType.ELIXIR, ItemType.SKILL]:
-        # 直接添加到新物品系统
-        _add_item_to_player_new_system(user_id, target_item)
+    if item_name in inventory:
+        inventory[item_name]["quantity"] += 1
     else:
-        # 添加到传统背包系统
-        # 如果背包中已有该物品，则数量+1
-        if item_name_to_buy in player.inventory:
-            player.inventory[item_name_to_buy]['quantity'] += 1
-        # 如果没有，则新增
-        else:
-            player.inventory[item_name_to_buy] = {
-                "quantity": 1,
-                "type": target_item['type']
-            }
-        
-    # 3. 保存更新到数据库
-    player_repository.update_player(player)
+        inventory[item_name] = {
+            "type": item_type,
+            "quantity": 1
+        }
 
-    return f"兑换成功！你花费了 {target_item['cost']} 贡献，获得了【{target_item['name']}】x1。可使用 `我的背包` 查看。"
+    player.inventory = json.dumps(inventory)
 
-def _add_item_to_player_new_system(user_id: str, item_info: dict):
-    """
-    添加物品到玩家的新物品系统
-    """
-    # 检查物品是否已存在
-    sql = "SELECT id FROM items WHERE name = ?"
-    result = fetch_query(sql, (item_info['name'],), one=True)
-    
-    if not result:
-        # 创建物品
-        sql = """
-        INSERT INTO items (name, type, level_requirement, description)
-        VALUES (?, ?, ?, ?)
-        """
-        description = item_info.get('description', f"宗门商店兑换获得的{item_info['type']}")
-        execute_query(sql, (
-            item_info['name'],
-            item_info['type'],
-            item_info.get('level_requirement', '凡人'),
-            description
-        ))
-        result = fetch_query("SELECT id FROM items WHERE name = ?", (item_info['name'],), one=True)
-    
-    item_id = result[0]
-    
-    # 检查玩家是否已有该物品
-    sql = "SELECT id FROM player_items WHERE player_id = ? AND item_id = ?"
-    result = fetch_query(sql, (user_id, item_id), one=True)
-    
-    if result:
-        # 增加数量
-        sql = "UPDATE player_items SET quantity = quantity + 1 WHERE id = ?"
-        execute_query(sql, (result[0],))
-    else:
-        # 添加新物品
-        sql = "INSERT INTO player_items (player_id, item_id, quantity) VALUES (?, ?, 1)"
-        execute_query(sql, (user_id, item_id))
+    # 保存更新
+    await player_repository.update_player(player)
+
+    return f"成功兑换【{item_name}】，消耗了 {cost} 贡献。物品已放入你的背包。"

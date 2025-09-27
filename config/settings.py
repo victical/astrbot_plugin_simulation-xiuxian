@@ -1,13 +1,15 @@
 # astrbot_xiuxian_plugin/config/settings.py
 
 import os
+from astrbot.api.star import StarTools
 
 # 插件根目录
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # 数据库文件路径
-# 我们将数据库文件放在插件根目录下的 data 文件夹中
-DATA_DIR = os.path.join(BASE_DIR, 'data')
+# 使用 AstrBot 标准数据目录
+PLUGIN_NAME = os.path.basename(BASE_DIR)  # 动态获取插件目录名作为插件名
+DATA_DIR = StarTools.get_data_dir(PLUGIN_NAME)
 DATABASE_FILE = os.path.join(DATA_DIR, 'xiuxian_data.db')
 
 # 确保 data 文件夹存在

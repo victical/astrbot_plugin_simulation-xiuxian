@@ -48,9 +48,9 @@ class Player:
             "sect": self.sect,
             "sect_rank": self.sect_rank,
             "contribution": self.contribution,
-            "inventory": json.dumps(self.inventory, ensure_ascii=False),
-            "skills": json.dumps(self.skills, ensure_ascii=False),
-            "equipment": json.dumps(self.equipment, ensure_ascii=False),
+            "inventory": json.dumps(self.inventory, ensure_ascii=False) if self.inventory is not None else '{}',
+            "skills": json.dumps(self.skills, ensure_ascii=False) if self.skills is not None else '[]',
+            "equipment": json.dumps(self.equipment, ensure_ascii=False) if self.equipment is not None else '{}',
             "current_mission": json.dumps(self.current_mission, ensure_ascii=False) if self.current_mission else None
         }
 

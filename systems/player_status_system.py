@@ -3,7 +3,7 @@
 from ..database.repositories import player_repository
 from ..config import cultivation_levels
 
-def get_player_status(user_id: str) -> str:
+async def get_player_status(user_id: str) -> str:
     """
     获取并格式化玩家的状态信息。
 
@@ -15,7 +15,7 @@ def get_player_status(user_id: str) -> str:
     :return: 格式化后的状态信息字符串
     """
     # 1. 从数据库获取玩家对象
-    player = player_repository.get_player_by_id(user_id)
+    player = await player_repository.get_player_by_id(user_id)
 
     # 2. 检查玩家是否存在
     if not player:

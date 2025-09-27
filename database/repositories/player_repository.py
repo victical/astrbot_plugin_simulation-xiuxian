@@ -1,11 +1,11 @@
 # astrbot_xiuxian_plugin/database/repositories/player_repository.py
-from astrbot.core import logger
+from astrbot.api import logger
 from ...models.player import Player
 from ...database import db_manager
 
-def get_player_by_id(user_id: str) -> Player | None:
+async def get_player_by_id(user_id: str) -> Player | None:
     """
-    通过 user_id 从数据库中获取玩家数据
+    通过 user_id 从数据库中异步获取玩家数据
     :param user_id: 玩家的唯一ID
     :return: Player 对象或 None
     """
@@ -18,7 +18,7 @@ def get_player_by_id(user_id: str) -> Player | None:
     FROM players 
     WHERE user_id = ?
     """
-    row = db_manager.fetch_query(sql, (user_id,), one=True)
+    row = await db_manager.fetch_query(sql, (user_id,), one=True)
     
     if row:
         logger.info("仓库层: 成功找到玩家。")
@@ -27,9 +27,9 @@ def get_player_by_id(user_id: str) -> Player | None:
     logger.warning("仓库层: 未找到玩家。")
     return None
 
-def create_player(player: Player):
+async def create_player(player: Player):
     """
-    在数据库中创建一个新玩家
+    在数据库中异步创建一个新玩家
     :param player: Player 对象
     """
     logger.info(f"仓库层: 正在创建新玩家: {player.user_id}")
@@ -48,11 +48,11 @@ def create_player(player: Player):
         player_dict['sect_rank'], player_dict['contribution'], player_dict['inventory'],
         player_dict['skills'], player_dict['equipment'], player_dict['current_mission']
     )
-    db_manager.execute_query(sql, params)
+    await db_manager.execute_query(sql, params)
 
-def update_player(player: Player):
+async def update_player(player: Player):
     """
-    更新数据库中的玩家数据
+    异步更新数据库中的玩家数据
     :param player: Player 对象
     """
     sql = """
@@ -73,12 +73,13 @@ def update_player(player: Player):
         player_dict['contribution'], player_dict['inventory'], player_dict['skills'],
         player_dict['equipment'], player_dict['current_mission'], player_dict['user_id']
     )
-    db_manager.execute_query(sql, params)
+    await db_manager.execute_query(sql, params)
 
-def player_exists(user_id: str) -> bool:
+async def player_exists(user_id: str) -> bool:
     """
-    检查玩家是否存在于数据库中
+    异步检查玩家是否存在于数据库中
     :param user_id: 玩家的唯一ID
     :return: 如果存在则为 True, 否则为 False
     """
-    return get_player_by_id(user_id) is not None
+    player = await get_player_by_id(user_id)
+    return player is not None

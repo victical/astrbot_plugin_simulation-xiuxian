@@ -1,10 +1,10 @@
 # astrbot_xiuxian_plugin/systems/game_start_system.py
-from astrbot.core import logger
+from astrbot.api import logger
 from ..models.player import Player
 from ..database.repositories import player_repository
 from ..config import settings
 
-def start_game(user_id: str, user_name: str) -> str:
+async def start_game(user_id: str, user_name: str) -> str:
     """
     处理用户的游戏开始请求。
 
@@ -19,9 +19,9 @@ def start_game(user_id: str, user_name: str) -> str:
     logger.info(f"进入 start_game 系统, user_id={user_id}")
     # 1. 检查玩家是否已经存在
     logger.info("检查玩家是否存在...")
-    if player_repository.player_exists(user_id):
+    if await player_repository.player_exists(user_id):
         logger.info("玩家已存在。")
-        player = player_repository.get_player_by_id(user_id)
+        player = await player_repository.get_player_by_id(user_id)
         if player:
             return f"道友 {player.user_name}，你已在仙途中，当前境界为【{player.level}】。无需重新开始。使用 `我的状态` 查看详情。"
         else:
@@ -49,25 +49,21 @@ def start_game(user_id: str, user_name: str) -> str:
         defense=initial_stats['defense'],
         meditation_start_time=None,
         sect=initial_stats['sect'],
-        sect_rank=initial_stats['sect_rank'],
-        contribution=initial_stats['contribution'],
-        inventory='{}',
-        skills='[]',
-        equipment='{}',
-        current_mission=None
+        sect_rank=initial_stats.get('sect_rank', '外门弟子'),
+        contribution=initial_stats.get('contribution', 0),
+        inventory=initial_stats.get('inventory', '{}'),
+        skills=initial_stats.get('skills', '{}'),
+        equipment=initial_stats.get('equipment', '{}'),
+        current_mission=initial_stats.get('current_mission', 'null')
     )
 
     # 3. 将新玩家存入数据库
-    logger.info("正在将新玩家存入数据库...")
-    player_repository.create_player(new_player)
-    logger.info("新玩家已成功存入数据库。")
-
-    # 4. 构造欢迎消息
-    welcome_message = (
-        f"欢迎道友 {user_name}！\n"
-        f"你已成功踏入修仙世界，成为一名【凡人】。\n"
-        f"你的旅程从此开始，愿你早日证道长生！\n"
-        f"输入 `我的状态` 来查看你的当前信息。"
-    )
-    
-    return welcome_message
+    try:
+        await player_repository.create_player(new_player)
+        logger.info(f"成功为 {user_name} 创建角色。")
+        return (f"道友 {user_name}，欢迎踏入修仙之路！\n"
+                f"当前境界为【{new_player.level}】，祝你早日飞升仙界！\n"
+                f"输入 `我的状态` 查看详情，`打坐` 开始修炼。")
+    except Exception as e:
+        logger.error(f"创建角色时发生错误: {e}", exc_info=True)
+        return "系统异常：无法创建角色，请稍后重试或联系管理员。"

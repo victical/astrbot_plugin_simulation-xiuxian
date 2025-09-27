@@ -48,7 +48,7 @@ class SimulationXiuxianPlugin(Star):
 
     async def initialize(self):
         logger.info("模拟修仙插件: 正在加载...")
-        db_manager.initialize_database()
+        await db_manager.initialize_database()
         logger.info("模拟修仙插件: 加载完成！")
 
     async def terminate(self):
@@ -63,7 +63,7 @@ class SimulationXiuxianPlugin(Star):
         user_name = event.get_sender_name()
         logger.info(f"用户信息: user_id={user_id}, user_name={user_name}")
         
-        message = game_start_system.start_game(user_id, user_name)
+        message = await game_start_system.start_game(user_id, user_name)
         
         logger.info(f"游戏开始系统返回消息: {message}")
         yield event.plain_result(message)
@@ -71,13 +71,13 @@ class SimulationXiuxianPlugin(Star):
     @filter.command(CMD_PLAYER_STATUS, "查看你的角色信息")
     async def handle_player_status(self, event: AstrMessageEvent):
         user_id = str(event.get_sender_id())
-        message = player_status_system.get_player_status(user_id)
+        message = await player_status_system.get_player_status(user_id)
         yield event.plain_result(message)
 
     @filter.command(CMD_MEDITATE, "静心打坐，提升修为")
     async def handle_meditate(self, event: AstrMessageEvent):
         user_id = str(event.get_sender_id())
-        message = progression_system.start_meditation(user_id)
+        message = await progression_system.start_meditation(user_id)
         yield event.plain_result(message)
 
     @filter.command(CMD_STOP_MEDITATE, "结束打坐，查看收益")
@@ -100,26 +100,26 @@ class SimulationXiuxianPlugin(Star):
             message = f"请指定要加入的宗门名称，例如：`加入宗门 青云门`\n\n{sect_list_message}"
         else:
             # 用户提供了宗门名称，执行加入逻辑
-            message = sect_system.join_sect(user_id, sect_name.strip())
+            message = await sect_system.join_sect(user_id, sect_name.strip())
         
         yield event.plain_result(message)
 
     @filter.command(CMD_SECT_MISSION, "查看当前的宗门任务")
     async def handle_sect_mission(self, event: AstrMessageEvent):
         user_id = str(event.get_sender_id())
-        message = sect_system.get_sect_mission(user_id)
+        message = await sect_system.get_sect_mission(user_id)
         yield event.plain_result(message)
 
     @filter.command(CMD_COMPLETE_MISSION, "完成宗门任务获取奖励")
     async def handle_complete_mission(self, event: AstrMessageEvent):
         user_id = str(event.get_sender_id())
-        message = sect_system.complete_sect_mission(user_id)
+        message = await sect_system.complete_sect_mission(user_id)
         yield event.plain_result(message)
 
     @filter.command(CMD_MY_SECT, "查看你所在的宗门信息")
     async def handle_my_sect(self, event: AstrMessageEvent):
         user_id = str(event.get_sender_id())
-        message = sect_system.get_sect_status(user_id)
+        message = await sect_system.get_sect_status(user_id)
         yield event.plain_result(message)
 
     @filter.command(CMD_INVENTORY, "查看你的背包")
@@ -131,13 +131,13 @@ class SimulationXiuxianPlugin(Star):
     @filter.command(CMD_SECT_SHOP, "查看宗门商店可兑换的物品")
     async def handle_sect_shop(self, event: AstrMessageEvent):
         user_id = str(event.get_sender_id())
-        message = sect_system.list_exchangeable_items(user_id)
+        message = await sect_system.list_exchangeable_items(user_id)
         yield event.plain_result(message)
 
     @filter.command(CMD_EXCHANGE_ITEM, "在宗门商店兑换物品", args_desc="<物品名称>")
     async def handle_exchange_item(self, event: AstrMessageEvent, item_name: str):
         user_id = str(event.get_sender_id())
-        message = sect_system.exchange_item(user_id, item_name.strip())
+        message = await sect_system.exchange_item(user_id, item_name.strip())
         yield event.plain_result(message)
 
     @filter.command(CMD_EXPLORE, "外出探索，寻找机缘")
@@ -153,7 +153,7 @@ class SimulationXiuxianPlugin(Star):
         if not elixir_name:
             message = "请指定要服用的丹药名称，例如：`服用 养气丹`"
         else:
-            message = use_elixir(user_id, elixir_name.strip())
+            message = await use_elixir(user_id, elixir_name.strip())
         yield event.plain_result(message)
     
     @filter.command(CMD_CRAFTING_RECIPES, "查看可合成的物品配方")
@@ -167,7 +167,7 @@ class SimulationXiuxianPlugin(Star):
         if not item_name:
             message = "请指定要合成的物品名称，例如：`合成 养气丹`"
         else:
-            message = craft_item(user_id, item_name.strip())
+            message = await craft_item(user_id, item_name.strip())
         yield event.plain_result(message)
     
     @filter.command(CMD_EQUIP_ITEM, "装备物品", args_desc="<物品名称>")
@@ -176,7 +176,7 @@ class SimulationXiuxianPlugin(Star):
         if not item_name:
             message = "请指定要装备的物品名称，例如：`装备 青木剑`"
         else:
-            message = equip_item(user_id, item_name.strip())
+            message = await equip_item(user_id, item_name.strip())
         yield event.plain_result(message)
     
     @filter.command(CMD_UNEQUIP_ITEM, "卸下装备", args_desc="<物品名称>")
@@ -185,7 +185,7 @@ class SimulationXiuxianPlugin(Star):
         if not item_name:
             message = "请指定要卸下的物品名称，例如：`卸下 青木剑`"
         else:
-            message = unequip_item(user_id, item_name.strip())
+            message = await unequip_item(user_id, item_name.strip())
         yield event.plain_result(message)
     
     @filter.command(CMD_SHOW_EQUIPMENT, "查看当前装备")

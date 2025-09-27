@@ -7,7 +7,7 @@ from ..database.repositories import player_repository
 from ..config import cultivation_levels
 from ..models.player import Player
 
-def _check_and_process_levelup(player: Player) -> str:
+async def _check_and_process_levelup(player: Player) -> str:
     """
     检查并处理玩家升级逻辑。
     如果玩家经验值足够，则提升其等级并增加属性。
@@ -52,11 +52,11 @@ def _check_and_process_levelup(player: Player) -> str:
             
     return "\n".join(levelup_messages)
 
-def start_meditation(user_id: str) -> str:
+async def start_meditation(user_id: str) -> str:
     """
     开始打坐。
     """
-    player = player_repository.get_player_by_id(user_id)
+    player = await player_repository.get_player_by_id(user_id)
     if not player:
         return "道友，你尚未踏入仙途。请输入 `我要修仙` 开启你的旅程。"
     
@@ -64,15 +64,15 @@ def start_meditation(user_id: str) -> str:
         return "你正在打坐中，请先 `结束打坐`。"
 
     player.meditation_start_time = int(time.time())
-    player_repository.update_player(player)
+    await player_repository.update_player(player)
     
     return "你开始了打坐，灵力正在慢慢恢复..."
 
-def stop_meditation(user_id: str) -> str:
+async def stop_meditation(user_id: str) -> str:
     """
     结束打坐并结算收益。
     """
-    player = player_repository.get_player_by_id(user_id)
+    player = await player_repository.get_player_by_id(user_id)
     if not player:
         return "道友，你尚未踏入仙途。请输入 `我要修仙` 开启你的旅程。"
 
@@ -99,8 +99,8 @@ def stop_meditation(user_id: str) -> str:
     player.spirit_power = min(player.spirit_power + spirit_power_gained, player.max_spirit_power)
     player.meditation_start_time = None
 
-    levelup_message = _check_and_process_levelup(player)
-    player_repository.update_player(player)
+    levelup_message = await _check_and_process_levelup(player)
+    await player_repository.update_player(player)
 
     result_message = (
         f"打坐结束，共持续 {int(duration_minutes)} 分钟。\n"

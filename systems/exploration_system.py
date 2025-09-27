@@ -5,7 +5,7 @@ from . import combat_system, monster_generator
 
 async def explore(user_id: str, provider) -> str:
     """处理玩家探索逻辑"""
-    player = player_repository.get_player_by_id(user_id)
+    player = await player_repository.get_player_by_id(user_id)
     if not player:
         return "道友，你尚未踏入仙途。请输入 `开始修仙` 开启你的旅程。"
 
@@ -28,7 +28,7 @@ async def explore(user_id: str, provider) -> str:
         event = random.choice(exploration_events.COMMON_EVENTS + exploration_events.WILDERNESS_EVENTS)
         result_msg = _process_peaceful_event(player, event)
 
-    player_repository.update_player(player)
+    await player_repository.update_player(player)
     return result_msg
 
 def _process_peaceful_event(player: "Player", event: dict) -> str:
