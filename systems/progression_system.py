@@ -58,7 +58,7 @@ async def start_meditation(user_id: str) -> str:
     """
     player = await player_repository.get_player_by_id(user_id)
     if not player:
-        return "道友，你尚未踏入仙途。请输入 `我要修仙` 开启你的旅程。"
+        return "道友，你尚未踏入仙途。请输入 `开始修仙` 开启你的旅程。"
     
     if player.meditation_start_time:
         return "你正在打坐中，请先 `结束打坐`。"
@@ -74,7 +74,7 @@ async def stop_meditation(user_id: str) -> str:
     """
     player = await player_repository.get_player_by_id(user_id)
     if not player:
-        return "道友，你尚未踏入仙途。请输入 `我要修仙` 开启你的旅程。"
+        return "道友，你尚未踏入仙途。请输入 `开始修仙` 开启你的旅程。"
 
     if not player.meditation_start_time:
         return "你尚未开始打坐。"

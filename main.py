@@ -58,7 +58,7 @@ class SimulationXiuxianPlugin(Star):
 
     @filter.command(CMD_START_XIUXIAN, "开始你的修仙之路")
     async def handle_start_xiuxian(self, event: AstrMessageEvent):
-        logger.info("我要修仙指令已触发，进入 handle_start_xiuxian。")
+        logger.info("开始修仙指令已触发，进入 handle_start_xiuxian。")
         user_id = str(event.get_sender_id())
         user_name = event.get_sender_name()
         logger.info(f"用户信息: user_id={user_id}, user_name={user_name}")
