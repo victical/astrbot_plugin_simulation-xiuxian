@@ -83,7 +83,7 @@ class SimulationXiuxianPlugin(Star):
     @filter.command(CMD_STOP_MEDITATE, "结束打坐，查看收益")
     async def handle_stop_meditation(self, event: AstrMessageEvent):
         user_id = str(event.get_sender_id())
-        message = progression_system.stop_meditation(user_id)
+        message = await progression_system.stop_meditation(user_id)
         yield event.plain_result(message)
 
     @filter.command(CMD_SECT_LIST, "查看所有可加入的宗门")
@@ -192,4 +192,5 @@ class SimulationXiuxianPlugin(Star):
     async def handle_show_equipment(self, event: AstrMessageEvent):
         user_id = str(event.get_sender_id())
         message = show_equipment(user_id)
+
         yield event.plain_result(message)
