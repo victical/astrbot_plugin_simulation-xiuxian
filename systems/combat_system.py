@@ -4,7 +4,7 @@ from ..database.repositories import player_repository
 from . import progression_system
 from .monster_generator import Monster
 
-def start_pve_combat(player: "Player", monster: Monster) -> str:
+async def start_pve_combat(player: "Player", monster: Monster) -> str:
     """
     处理玩家与动态生成的怪物之间的战斗。
     :param player: 玩家对象。
@@ -40,7 +40,7 @@ def start_pve_combat(player: "Player", monster: Monster) -> str:
     
     if player_hp <= 0:
         player.hp = 1
-        player_repository.update_player(player)
+        await player_repository.update_player(player)
         combat_log.append("\n你被击败了...侥幸保住一命。")
         return "\n".join(combat_log)
     else:
@@ -58,9 +58,9 @@ def start_pve_combat(player: "Player", monster: Monster) -> str:
         ]
         combat_log.extend(reward_log)
         
-        levelup_message = progression_system._check_and_process_levelup(player)
+        levelup_message = await progression_system._check_and_process_levelup(player)
         if levelup_message:
             combat_log.append("\n" + levelup_message)
             
-        player_repository.update_player(player)
+        await player_repository.update_player(player)
         return "\n".join(combat_log)

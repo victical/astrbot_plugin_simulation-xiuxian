@@ -4,6 +4,7 @@ from . import progression_system
 from . import sect_system
 from . import inventory_system
 from . import exploration_system
+from . import player_attribute_system
 
 __all__ = [
     "game_start_system",
@@ -12,4 +13,5 @@ __all__ = [
     "sect_system",
     "inventory_system",
     "exploration_system",
+    "player_attribute_system",
 ]

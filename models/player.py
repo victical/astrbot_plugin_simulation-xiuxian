@@ -5,7 +5,7 @@ import json
 class Player:
     def __init__(self, user_id, user_name, level, experience, spirit_stones, 
                  hp, spirit_power, max_spirit_power, attack, defense, meditation_start_time,
-                 sect, sect_rank, contribution, 
+                 sect, sect_rank, contribution, attribute_points,
                  inventory=None, skills=None, equipment=None, current_mission=None, 
                  created_at=None, updated_at=None):
         self.user_id = user_id
@@ -18,6 +18,7 @@ class Player:
         self.max_spirit_power = max_spirit_power
         self.attack = attack
         self.defense = defense
+        self.attribute_points = attribute_points
         self.meditation_start_time = meditation_start_time
         self.sect = sect
         self.sect_rank = sect_rank
@@ -44,6 +45,7 @@ class Player:
             "max_spirit_power": self.max_spirit_power,
             "attack": self.attack,
             "defense": self.defense,
+            "attribute_points": self.attribute_points,
             "meditation_start_time": self.meditation_start_time,
             "sect": self.sect,
             "sect_rank": self.sect_rank,

@@ -87,24 +87,6 @@ SKILL_NAME_SUFFIXES = [
     "真言", "咒", "印", "章", "篇", "卷", "谱", "诀要", "总纲", "精要"
 ]
 
-async def generate_item_name_with_llm(provider, item_type: str, level: str) -> str:
-    """
-    使用大模型生成物品名称
-    """
-    if not provider:
-        # 如果没有大模型，使用预设名称
-        return generate_item_name(item_type, level)
-        
-    try:
-        prompt = f"为修仙游戏生成一个{level}境界可用的{item_type}名称。名称要霸气，符合修仙世界观。只返回名称，不要其他内容。"
-        llm_resp = await provider.text_chat(prompt=prompt, system_prompt="你是一个富有创意的修仙游戏文案设计师。")
-        if llm_resp and llm_resp.content:
-            return llm_resp.content.strip().replace('"', '').replace('“', '').replace('”', '')
-    except Exception as e:
-        print(f"LLM call failed: {e}")
-    
-    # 备用方案
-    return generate_item_name(item_type, level)
 
 def generate_item_name(item_type: str, level: str) -> str:
     """
@@ -185,7 +167,7 @@ async def generate_random_item(provider, item_type: str, player_level: str) -> d
     item_level = LEVEL_ORDER[item_level_index]
     
     # 生成物品名称
-    item_name = await generate_item_name_with_llm(provider, item_type, item_level)
+    item_name = generate_item_name(item_type, item_level)
     
     # 生成物品属性
     attributes = generate_item_attributes(item_type, item_level)

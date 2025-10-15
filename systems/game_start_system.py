@@ -47,6 +47,7 @@ async def start_game(user_id: str, user_name: str) -> str:
         max_spirit_power=initial_stats['max_spirit_power'],
         attack=initial_stats['attack'],
         defense=initial_stats['defense'],
+        attribute_points=initial_stats.get('attribute_points', 0),
         meditation_start_time=None,
         sect=initial_stats['sect'],
         sect_rank=initial_stats.get('sect_rank', '外门弟子'),

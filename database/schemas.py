@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS players (
     max_spirit_power INTEGER NOT NULL,
     attack INTEGER NOT NULL,
     defense INTEGER NOT NULL,
+    attribute_points INTEGER DEFAULT 0,
     meditation_start_time TIMESTAMP,
     sect TEXT,
     sect_rank TEXT,

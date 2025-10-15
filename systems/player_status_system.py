@@ -31,6 +31,7 @@ async def get_player_status(user_id: str) -> str:
         f"修为: {player.experience} / {next_level_exp}\n"
         f"灵石: {player.spirit_stones} 颗\n"
         f"═══ 属性 ═══\n"
+        f"剩余属性点: {player.attribute_points}\n"
         f"气血: {player.hp}\n"
         f"灵力: {player.spirit_power} / {player.max_spirit_power}\n"
         f"攻击: {player.attack}\n"

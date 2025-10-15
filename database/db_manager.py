@@ -121,6 +121,11 @@ async def _update_database_schema():
             logger.info("正在添加 'equipment' 字段...")
             await cursor.execute("ALTER TABLE players ADD COLUMN equipment TEXT")
             logger.info("字段 'equipment' 已成功添加。")
+
+        if 'attribute_points' not in columns:
+            logger.info("正在添加 'attribute_points' 字段...")
+            await cursor.execute("ALTER TABLE players ADD COLUMN attribute_points INTEGER NOT NULL DEFAULT 0")
+            logger.info("字段 'attribute_points' 已成功添加。")
         
         await conn.commit()
         await cursor.close()

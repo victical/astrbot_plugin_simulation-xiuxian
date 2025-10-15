@@ -10,6 +10,7 @@ from .systems import (
     sect_system,
     inventory_system,
     exploration_system,
+    player_attribute_system,
 )
 
 # 新增导入
@@ -37,6 +38,7 @@ CMD_CRAFTING_RECIPES = "合成配方"
 CMD_EQUIP_ITEM = "装备"
 CMD_UNEQUIP_ITEM = "卸下"
 CMD_SHOW_EQUIPMENT = "我的装备"
+CMD_ALLOCATE_POINTS = "加点"
 
 
 class SimulationXiuxianPlugin(Star):
@@ -193,4 +195,21 @@ class SimulationXiuxianPlugin(Star):
         user_id = str(event.get_sender_id())
         message = show_equipment(user_id)
 
+        yield event.plain_result(message)
+
+    @filter.command(CMD_ALLOCATE_POINTS, "分配属性点", args_desc="<属性名称> <点数>")
+    async def handle_allocate_points(self, event: AstrMessageEvent, attribute: str = None, points: str = None):
+        user_id = str(event.get_sender_id())
+        
+        # 检查参数有效性
+        if not attribute or points is None:
+            message = "指令格式错误。正确格式：`加点 <属性名称> <点数>`\n例如：`加点 气血 10`"
+        else:
+            # 确保points是字符串类型后再进行isdigit检查
+            points_str = str(points)
+            if not points_str.isdigit():
+                message = "指令格式错误。正确格式：`加点 <属性名称> <点数>`\n例如：`加点 气血 10`"
+            else:
+                message = await player_attribute_system.allocate_attribute_points(user_id, attribute, int(points_str))
+            
         yield event.plain_result(message)

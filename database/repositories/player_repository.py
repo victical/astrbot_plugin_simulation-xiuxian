@@ -13,7 +13,7 @@ async def get_player_by_id(user_id: str) -> Player | None:
     sql = """
     SELECT user_id, user_name, level, experience, spirit_stones, 
            hp, spirit_power, max_spirit_power, attack, defense, meditation_start_time,
-           sect, sect_rank, contribution, inventory, skills, equipment, current_mission, 
+           sect, sect_rank, contribution, attribute_points, inventory, skills, equipment, current_mission, 
            created_at, updated_at
     FROM players 
     WHERE user_id = ?
@@ -22,6 +22,7 @@ async def get_player_by_id(user_id: str) -> Player | None:
     
     if row:
         logger.info("仓库层: 成功找到玩家。")
+        logger.info(f"从数据库检索到的原始行数据: {row}")
         # 将数据库行数据解包以匹配 Player 类的构造函数
         return Player(*row)
     logger.warning("仓库层: 未找到玩家。")
@@ -36,8 +37,8 @@ async def create_player(player: Player):
     sql = """
     INSERT INTO players (user_id, user_name, level, experience, spirit_stones, 
                          hp, spirit_power, max_spirit_power, attack, defense, meditation_start_time,
-                         sect, sect_rank, contribution, inventory, skills, equipment, current_mission)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         sect, sect_rank, contribution, attribute_points, inventory, skills, equipment, current_mission)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """
     player_dict = player.to_dict()
     params = (
@@ -45,9 +46,10 @@ async def create_player(player: Player):
         player_dict['experience'], player_dict['spirit_stones'], player_dict['hp'],
         player_dict['spirit_power'], player_dict['max_spirit_power'], player_dict['attack'],
         player_dict['defense'], player_dict['meditation_start_time'], player_dict['sect'],
-        player_dict['sect_rank'], player_dict['contribution'], player_dict['inventory'],
+        player_dict['sect_rank'], player_dict['contribution'], player_dict['attribute_points'], player_dict['inventory'],
         player_dict['skills'], player_dict['equipment'], player_dict['current_mission']
     )
+    logger.info(f"仓库层: 准备创建玩家，SQL: {sql}, PARAMS: {params}")
     await db_manager.execute_query(sql, params)
 
 async def update_player(player: Player):
@@ -60,7 +62,7 @@ async def update_player(player: Player):
         user_name = ?, level = ?, experience = ?, spirit_stones = ?,
         hp = ?, spirit_power = ?, max_spirit_power = ?, attack = ?, defense = ?,
         meditation_start_time = ?, sect = ?, sect_rank = ?, contribution = ?,
-        inventory = ?, skills = ?, equipment = ?, current_mission = ?,
+        attribute_points = ?, inventory = ?, skills = ?, equipment = ?, current_mission = ?,
         updated_at = CURRENT_TIMESTAMP
     WHERE user_id = ?
     """
@@ -70,9 +72,10 @@ async def update_player(player: Player):
         player_dict['spirit_stones'], player_dict['hp'], player_dict['spirit_power'],
         player_dict['max_spirit_power'], player_dict['attack'], player_dict['defense'],
         player_dict['meditation_start_time'], player_dict['sect'], player_dict['sect_rank'],
-        player_dict['contribution'], player_dict['inventory'], player_dict['skills'],
+        player_dict['contribution'], player_dict['attribute_points'], player_dict['inventory'], player_dict['skills'],
         player_dict['equipment'], player_dict['current_mission'], player_dict['user_id']
     )
+    logger.info(f"仓库层: 准备更新玩家，SQL: {sql}, PARAMS: {params}")
     await db_manager.execute_query(sql, params)
 
 async def player_exists(user_id: str) -> bool:

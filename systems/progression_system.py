@@ -27,6 +27,14 @@ async def _check_and_process_levelup(player: Player) -> str:
         required_exp = level_info["required_exp"]
         
         if player.experience >= required_exp:
+            if "大圆满" in current_level:
+                dice = random.randint(1, 100)
+                if dice <= 50:
+                    player.experience -= int(required_exp * 0.1)
+                    msg = "突破失败，修为倒退10%。"
+                    levelup_messages.append(msg)
+                    break
+            
             current_level_index = cultivation_levels.LEVEL_ORDER.index(current_level)
             new_level = cultivation_levels.LEVEL_ORDER[current_level_index + 1]
             
@@ -34,18 +42,43 @@ async def _check_and_process_levelup(player: Player) -> str:
             new_level_info = cultivation_levels.CULTIVATION_LEVELS.get(new_level)
             player.max_spirit_power = new_level_info["max_spirit_power"]
             
-            hp_gain = random.randint(50, 100)
-            spirit_power_gain = random.randint(20, 50)
-            attack_gain = random.randint(5, 10)
-            defense_gain = random.randint(3, 8)
+            attribute_points_gain = 0
+            # 根据新境界确定给予的属性点数
+            if "凡人" in current_level:
+                # 凡人突破到筑基期
+                attribute_points_gain = 20
+            elif "筑基" in new_level:
+                # 筑基期各阶段突破
+                attribute_points_gain = 20
+            elif "金丹" in new_level:
+                # 金丹期各阶段突破
+                attribute_points_gain = 20
+            elif "元婴" in new_level:
+                # 元婴期各阶段突破
+                attribute_points_gain = 40
+            elif "出窍" in new_level:
+                # 出窍期各阶段突破
+                attribute_points_gain = 40
+            elif "分神" in new_level:
+                # 分神期各阶段突破
+                attribute_points_gain = 40
+            elif "合体" in new_level:
+                # 合体期各阶段突破
+                attribute_points_gain = 60
+            elif "大乘" in new_level:
+                # 大乘期各阶段突破
+                attribute_points_gain = 60
+            elif "渡劫" in new_level:
+                # 渡劫期各阶段突破
+                attribute_points_gain = 60
+            else:
+                # 更高境界突破
+                attribute_points_gain = 100
             
-            player.hp += hp_gain
-            player.spirit_power = min(player.spirit_power + spirit_power_gain, player.max_spirit_power)
-            player.attack += attack_gain
-            player.defense += defense_gain
+            player.attribute_points += attribute_points_gain
             
             msg = (f"🎉 恭喜！你成功突破，当前境界提升至【{new_level}】！\n"
-                   f"   气血+ {hp_gain}, 灵力上限提升至 {player.max_spirit_power}, 攻击+ {attack_gain}, 防御+ {defense_gain}")
+                   f"   获得了 {attribute_points_gain} 点属性点，请使用 `加点` 指令进行分配。")
             levelup_messages.append(msg)
         else:
             break
@@ -89,8 +122,8 @@ async def stop_meditation(user_id: str) -> str:
     level_index = cultivation_levels.LEVEL_ORDER.index(player.level)
     
     # 每分钟收益
-    exp_per_minute = 5 + level_index * 2
     spirit_power_per_minute = 10 + level_index * 5
+    exp_per_minute= 10 + level_index * 5
 
     exp_gained = int(duration_minutes * exp_per_minute)
     spirit_power_gained = int(duration_minutes * spirit_power_per_minute)

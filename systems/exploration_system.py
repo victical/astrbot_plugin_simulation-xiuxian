@@ -19,9 +19,8 @@ async def explore(user_id: str, provider) -> str:
     if random.random() < 0.7:
         # --- 战斗事件 ---
         monster = monster_generator.generate_monster(player.level)
-        monster.name = await monster_generator.generate_monster_name_with_llm(provider)
         
-        combat_result = combat_system.start_pve_combat(player, monster)
+        combat_result = await combat_system.start_pve_combat(player, monster)
         result_msg = f"你在东域的密林中穿行，突然，一头名为【{monster.name}】（{monster.level}）的妖兽挡住了你的去路！\n{combat_result}"
     else:
         # --- 和平事件 ---
